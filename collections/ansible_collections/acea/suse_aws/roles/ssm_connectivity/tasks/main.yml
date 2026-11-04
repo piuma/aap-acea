@@ -1,0 +1,82 @@
+---
+- name: "Utente della sessione PRIMA della privilege escalation"
+  # La sessione Session Manager parte come `ssm-user`: il plugin aws_ssm
+  # ignora remote_user e ansible_user.
+  ansible.builtin.raw: id -un
+  become: false
+  changed_when: false
+  register: ssm_connectivity_session_user
+
+- name: "Utente DOPO la privilege escalation"
+  ansible.builtin.raw: id -un
+  become: true
+  changed_when: false
+  register: ssm_connectivity_root_user
+
+- name: "Il become porta davvero a root"
+  ansible.builtin.assert:
+    that:
+      - ssm_connectivity_root_user.stdout | trim == 'root'
+    fail_msg: >-
+      La privilege escalation non funziona: dopo become l'utente e'
+      {{ ssm_connectivity_root_user.stdout | trim }}. Verifica il sudoers di
+      ssm-user sulla VM (/etc/sudoers.d/ssm-agent-users).
+
+# Prerequisito del trasferimento file: il plugin genera un presigned URL S3 e
+# fa scaricare il modulo alla VM con curl. Senza curl funziona solo `raw`.
+- name: "curl e' presente sulla VM"
+  ansible.builtin.raw: command -v curl
+  become: false
+  changed_when: false
+  failed_when: false
+  register: ssm_connectivity_curl
+
+- name: "curl e' obbligatorio per il trasferimento dei moduli"
+  ansible.builtin.assert:
+    that:
+      - ssm_connectivity_curl.rc == 0
+    fail_msg: >-
+      curl non e' installato su {{ inventory_hostname }}. Il plugin aws_ssm fa
+      scaricare i moduli alla VM con curl, a partire da un presigned URL S3:
+      senza curl ogni task diverso da `raw` fallisce.
+      Rimedio: zypper --non-interactive install -y curl
+    success_msg: "curl disponibile."
+
+- name: "Trasferimento modulo via bucket S3 (ansible.builtin.ping)"
+  # Se questo task fallisce mentre i `raw` qui sopra passano, il problema e'
+  # quasi sempre il bucket S3 o i permessi IAM su di esso.
+  ansible.builtin.ping:
+  when: ssm_connectivity_test_module_transfer | bool
+
+- name: "Leggi /etc/os-release"
+  ansible.builtin.slurp:
+    src: /etc/os-release
+  register: ssm_connectivity_os_release
+
+- name: "Estrai PRETTY_NAME"
+  ansible.builtin.set_fact:
+    ssm_connectivity_os_pretty_name: >-
+      {{ (ssm_connectivity_os_release.content | b64decode).splitlines()
+         | select('match', '^PRETTY_NAME=')
+         | map('replace', 'PRETTY_NAME=', '')
+         | map('replace', '"', '')
+         | first | default('sconosciuta') }}
+
+- name: "Riepilogo connessione"
+  ansible.builtin.debug:
+    msg:
+      - "instance-id        : {{ ansible_aws_ssm_instance_id | default(inventory_hostname) }}"
+      - "nome EC2           : {{ ec2_name | default('n/d') }}"
+      - "utente sessione SSM: {{ ssm_connectivity_session_user.stdout | trim }}"
+      - "utente dopo become : {{ ssm_connectivity_root_user.stdout | trim }}"
+      - "bucket di transito : {{ ansible_aws_ssm_bucket_name | default('n/d') }}"
+      - "region             : {{ ansible_aws_ssm_region | default('n/d') }}"
+      - "distribuzione      : {{ ssm_connectivity_os_pretty_name }}"
+
+- name: "L'host e' una SUSE"
+  ansible.builtin.assert:
+    that:
+      - "'suse' in (ssm_connectivity_os_release.content | b64decode | lower)"
+    fail_msg: "{{ inventory_hostname }} non sembra una SLES/openSUSE."
+    success_msg: "Target SUSE confermato."
+  when: ssm_connectivity_require_suse | bool

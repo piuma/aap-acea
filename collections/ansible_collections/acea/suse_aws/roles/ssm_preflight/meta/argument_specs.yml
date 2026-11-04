@@ -1,0 +1,47 @@
+---
+argument_specs:
+  main:
+    short_description: "Verifica i prerequisiti per le connessioni SSM"
+    description:
+      - Gira interamente sul nodo di esecuzione, non tocca gli host target.
+      - >-
+        Va eseguito con C(hosts: localhost) e C(connection: local), perche'
+        verifica l'ambiente da cui parte l'automazione.
+    options:
+      ssm_preflight_region:
+        type: str
+        required: false
+        description: "Regione AWS in cui cercare istanze e bucket."
+      ssm_preflight_bucket:
+        # Obbligatorio nei fatti, ma non marcato required: ha un default vuoto
+        # in defaults/main.yml ed e' il ruolo stesso ad asserirne la presenza
+        # con un messaggio d'errore utile.
+        type: str
+        required: false
+        description: "Bucket S3 usato dal connection plugin aws_ssm per i trasferimenti."
+      ssm_preflight_plugin_path:
+        type: str
+        required: false
+        description: "Path atteso del binario session-manager-plugin dentro l'EE."
+      ssm_preflight_required_collections:
+        type: list
+        elements: str
+        required: false
+        description: "Collection la cui presenza nell'EE viene verificata."
+      ssm_preflight_connection_plugin:
+        type: str
+        required: false
+        description: >-
+          FQCN del connection plugin SSM di cui verificare la presenza:
+          C(amazon.aws.aws_ssm) da amazon.aws 10.0.0, C(community.aws.aws_ssm)
+          sulle versioni precedenti.
+      ssm_preflight_instance_id:
+        type: str
+        required: false
+        description: >-
+          Instance ID da verificare (esistenza, instance profile, tag,
+          registrazione in SSM). Vuoto salta questi controlli.
+      ssm_preflight_test_bucket_rw:
+        type: bool
+        required: false
+        description: "Esegue un put/delete reale sul bucket per provare i permessi IAM."

@@ -1,0 +1,26 @@
+---
+# acea.suse_aws.facts_report
+#
+# Due play: il primo raccoglie dai target, il secondo rende il report in locale
+# leggendo gli hostvars del primo.
+#
+#   ansible-playbook acea.suse_aws.facts_report
+- name: "Raccolta fact dalle istanze SUSE"
+  hosts: "{{ target_hosts | default('suse_servers') }}"
+  gather_facts: true
+
+  roles:
+    - role: acea.suse_aws.facts_report
+
+- name: "Rendering del report aggregato"
+  hosts: localhost
+  connection: local
+  gather_facts: true
+
+  tasks:
+    - name: "Genera e stampa il report"
+      ansible.builtin.include_role:
+        name: acea.suse_aws.facts_report
+        tasks_from: render
+      vars:
+        facts_report_group: "{{ target_hosts | default('suse_servers') }}"

@@ -1,0 +1,38 @@
+---
+- name: "Il tipo di patching e' valido"
+  ansible.builtin.assert:
+    that:
+      - zypper_patching_type in ['security', 'recommended', 'all']
+    fail_msg: >-
+      zypper_patching_type='{{ zypper_patching_type }}' non valido:
+      usa security, recommended o all.
+
+- name: "L'host e' una SUSE"
+  ansible.builtin.assert:
+    that:
+      - ansible_facts.os_family == 'Suse'
+    fail_msg: >-
+      {{ inventory_hostname }} non e' SUSE
+      (os_family={{ ansible_facts.os_family | default('non raccolto') }}).
+      Questo ruolo richiede che il play faccia gather_facts.
+
+- name: "C'e' spazio libero sufficiente per zypper"
+  ansible.builtin.assert:
+    that:
+      - >-
+        (ansible_facts.mounts | selectattr('mount', 'in', ['/var', '/'])
+         | map(attribute='size_available') | max) > zypper_patching_min_free_bytes
+    fail_msg: >-
+      Meno di {{ zypper_patching_min_free_bytes | human_readable }} liberi su /
+      o /var: zypper rischia di fallire a meta' aggiornamento.
+
+- name: "Nessun lock zypper pendente"
+  ansible.builtin.command: zypper --non-interactive locks
+  changed_when: false
+  failed_when: false
+  register: zypper_patching_locks
+
+- name: "Lock zypper attivi"
+  ansible.builtin.debug:
+    var: zypper_patching_locks.stdout_lines
+  when: zypper_patching_locks.stdout_lines | default([]) | length > 2

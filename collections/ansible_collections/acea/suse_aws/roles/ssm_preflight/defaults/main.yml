@@ -1,0 +1,23 @@
+---
+# Regione e bucket: di default ereditati dalle variabili di progetto
+# (inventory/group_vars/all.yml oppure Extra Variables del Job Template).
+ssm_preflight_region: "{{ aws_region | default('eu-south-1') }}"
+ssm_preflight_bucket: "{{ ssm_transfer_bucket | default('') }}"
+
+# Path atteso del binario nell'Execution Environment.
+ssm_preflight_plugin_path: "{{ ansible_aws_ssm_plugin | default('/usr/local/bin/session-manager-plugin') }}"
+
+# Collection che devono essere presenti nell'EE.
+ssm_preflight_required_collections:
+  - amazon.aws
+  - community.general
+
+# Connection plugin di cui verificare la presenza nell'EE. Tiene lo stesso
+# default della variabile di progetto ssm_connection_plugin.
+ssm_preflight_connection_plugin: "{{ ssm_connection_plugin | default('amazon.aws.aws_ssm') }}"
+
+# Se valorizzato, verifica anche che questa istanza sia registrata in SSM.
+ssm_preflight_instance_id: ""
+
+# Esegue un put/delete reale sul bucket per provare i permessi IAM.
+ssm_preflight_test_bucket_rw: true

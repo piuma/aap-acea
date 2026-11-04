@@ -1,0 +1,5 @@
+---
+# Entry point per il Job Template "SUSE / 10 - Report inventario".
+# Logica: ruolo acea.suse_aws.facts_report (tasks/main.yml + tasks/render.yml).
+- name: "10 - Raccolta fact e report di inventario"
+  ansible.builtin.import_playbook: acea.suse_aws.facts_report

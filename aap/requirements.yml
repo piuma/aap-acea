@@ -1,0 +1,14 @@
+---
+# Collection necessarie SOLO per lanciare aap/controller_setup.yml, cioe' per
+# configurare AAP dall'esterno. Non servono nell'Execution Environment che
+# esegue i playbook verso le SUSE.
+#
+#   ansible-galaxy collection install -r aap/requirements.yml
+collections:
+  # Collection supportata, inclusa nella subscription AAP (scaricabile da
+  # console.redhat.com / Automation Hub).
+  - name: ansible.controller
+
+  # Alternativa upstream, se usi AWX o non hai accesso ad Automation Hub.
+  # I nomi dei moduli sono gli stessi: basta sostituire il namespace nel playbook.
+  - name: awx.awx

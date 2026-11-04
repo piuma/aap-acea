@@ -1,0 +1,16 @@
+---
+galaxy_info:
+  role_name: ssm_preflight
+  author: Team Automazione
+  description: >-
+    Diagnostica i prerequisiti per le connessioni amazon.aws.aws_ssm:
+    session-manager-plugin e boto3 nell'Execution Environment, credenziali AWS,
+    bucket S3 di transito, registrazione dell'istanza in Systems Manager.
+  license: MIT
+  min_ansible_version: "2.15"
+  galaxy_tags:
+    - aws
+    - ssm
+    - diagnostics
+
+dependencies: []

@@ -1,0 +1,35 @@
+---
+# AAP sincronizza questo file ad ogni "Project Sync" e installa le collection
+# elencate. La collection acea.suse_aws NON e' qui: e' codice sorgente di questo
+# repo, versionata in collections/ansible_collections/acea/suse_aws/.
+#
+# Nota sul connection plugin aws_ssm: e' stato promosso da community.aws a
+# amazon.aws con il rilascio di amazon.aws 10.0.0. In amazon.aws 9.x il plugin
+# NON e' presente. Da qui il pin a >=10.0.0.
+# Se devi restare su amazon.aws 9.x, abbassa il pin e imposta
+# ssm_connection_plugin=community.aws.aws_ssm in inventory/group_vars/all.yml.
+#
+# community.aws serve comunque: contiene ssm_inventory_info usato dal preflight
+# (ed e' il fallback per il connection plugin).
+collections:
+  - name: amazon.aws
+    version: ">=10.0.0"
+
+  - name: community.aws
+    version: ">=9.0.0"
+
+  - name: community.general
+    version: ">=10.0.0"
+
+  - name: ansible.posix
+    version: ">=1.5.4"
+
+  # ---------------------------------------------------------------------
+  # Fallback: se nel tuo AAP la collection locale del progetto non viene
+  # risolta (ANSIBLE_COLLECTIONS_PATH impostato dal runner senza includere
+  # <project>/collections), decommenta questo blocco. Il project sync la
+  # installera' direttamente dal repo, sottodirectory compresa.
+  # ---------------------------------------------------------------------
+  # - name: https://github.com/ORGANIZZAZIONE/aap-acea.git#/collections/ansible_collections/acea/suse_aws
+  #   type: git
+  #   version: main

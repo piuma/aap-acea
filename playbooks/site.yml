@@ -1,0 +1,8 @@
+---
+# Orchestratore completo: preflight, connettivita, baseline, webserver.
+# Il patching resta volutamente fuori: vuole la sua finestra di manutenzione.
+#
+# In AAP preferisci il Workflow Job Template definito in aap/controller_setup.yml:
+# ogni step diventa un nodo con le sue survey e i suoi permessi.
+- name: "site - Convergenza completa"
+  ansible.builtin.import_playbook: acea.suse_aws.site

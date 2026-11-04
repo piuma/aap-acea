@@ -1,0 +1,23 @@
+---
+galaxy_info:
+  role_name: baseline
+  author: Team Automazione
+  description: >-
+    Baseline di configurazione per SUSE Linux Enterprise: pacchetti, timezone e
+    NTP, utenti operativi, parametri kernel, motd e (opt-in) sshd.
+  license: MIT
+  min_ansible_version: "2.15"
+  platforms:
+    - name: SLES
+      versions:
+        - "15"
+    - name: opensuse
+      versions:
+        - all
+  galaxy_tags:
+    - baseline
+    - hardening
+    - compliance
+    - suse
+
+dependencies: []

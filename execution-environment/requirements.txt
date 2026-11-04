@@ -1,0 +1,9 @@
+# Dipendenze Python dell'Execution Environment.
+# boto3/botocore servono sia al connection plugin aws_ssm sia ai moduli
+# amazon.aws usati dal preflight e dall'inventario dinamico.
+boto3>=1.34.0
+botocore>=1.35.0
+
+# Richiesto dall'inventory plugin amazon.aws.aws_ec2 per i filtri complessi
+# e da alcuni moduli amazon.aws.
+jmespath>=1.0.1

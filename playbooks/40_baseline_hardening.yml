@@ -1,0 +1,5 @@
+---
+# Entry point per il Job Template "SUSE / 40 - Baseline di configurazione".
+# Logica: ruolo acea.suse_aws.baseline (sezioni attivabili con baseline_manage_*).
+- name: "40 - Baseline di configurazione SUSE"
+  ansible.builtin.import_playbook: acea.suse_aws.baseline

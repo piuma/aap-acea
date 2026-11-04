@@ -1,0 +1,21 @@
+---
+- name: "Imposta il timezone"
+  community.general.timezone:
+    name: "{{ baseline_timezone }}"
+  notify: Riavvia chronyd
+
+- name: "Configura i server NTP"
+  ansible.builtin.template:
+    src: chrony.conf.j2
+    dest: /etc/chrony.conf
+    owner: root
+    group: root
+    mode: "0644"
+    backup: true
+  notify: Riavvia chronyd
+
+- name: "Abilita e avvia chronyd"
+  ansible.builtin.systemd_service:
+    name: chronyd
+    enabled: true
+    state: started

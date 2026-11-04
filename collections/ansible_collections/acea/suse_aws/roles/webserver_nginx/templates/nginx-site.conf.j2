@@ -1,0 +1,25 @@
+{{ ansible_managed | comment }}
+# Generato dal ruolo acea.suse_aws.webserver_nginx — non modificare a mano.
+
+server {
+    listen       {{ webserver_nginx_port }}{{ ' default_server' if webserver_nginx_default_server else '' }};
+    listen       [::]:{{ webserver_nginx_port }}{{ ' default_server' if webserver_nginx_default_server else '' }};
+    server_name  _;
+
+    root   {{ webserver_nginx_docroot }};
+    index  index.html;
+
+    access_log /var/log/nginx/{{ webserver_nginx_site_name }}-access.log;
+    error_log  /var/log/nginx/{{ webserver_nginx_site_name }}-error.log;
+
+    location / {
+        try_files $uri $uri/ =404;
+    }
+
+    # Endpoint di health check usato dal playbook webserver.yml
+    location = /healthz {
+        access_log off;
+        add_header Content-Type text/plain;
+        return 200 "ok\n";
+    }
+}

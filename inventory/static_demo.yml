@@ -1,0 +1,21 @@
+---
+# Inventario statico di fallback, utile per il primo test quando ancora non
+# hai configurato i tag EC2 o la credential per l'inventario dinamico.
+#
+#   ansible-playbook -i inventory/static_demo.yml playbooks/00_ssm_ping.yml
+#
+# Sostituisci gli instance-id con quelli reali. Il nome host DEVE essere
+# l'instance-id, oppure devi valorizzare ansible_aws_ssm_instance_id a mano
+# (vedi il secondo host qui sotto).
+all:
+  children:
+    suse_servers:
+      hosts:
+        i-0123456789abcdef0:
+          ec2_name: sles15-demo-01
+
+        # Variante con nome "parlante": in questo caso l'instance-id va
+        # dichiarato esplicitamente.
+        sles15-demo-02:
+          ansible_aws_ssm_instance_id: i-0fedcba9876543210
+          ec2_name: sles15-demo-02

@@ -1,0 +1,23 @@
+---
+# acea.suse_aws.patching
+#
+# La strategia di rollout vive qui, nel play: `serial` e `max_fail_percentage`
+# sono keyword di play e non possono stare dentro un ruolo.
+#
+#   # solo report
+#   ansible-playbook acea.suse_aws.patching
+#
+#   # applica le patch di sicurezza, riavviando se necessario
+#   ansible-playbook acea.suse_aws.patching \
+#     -e zypper_patching_check_only=false -e zypper_patching_allow_reboot=true
+- name: "Patching zypper su SUSE Linux Enterprise"
+  hosts: "{{ target_hosts | default('suse_servers') }}"
+  gather_facts: true
+
+  # Quanti host alla volta, e quanta percentuale di fallimenti tollerare prima
+  # di fermare l'intero rollout.
+  serial: "{{ patch_serial | default('25%') }}"
+  max_fail_percentage: "{{ patch_max_fail_percentage | default(20) }}"
+
+  roles:
+    - role: acea.suse_aws.zypper_patching

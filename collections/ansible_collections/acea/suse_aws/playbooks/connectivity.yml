@@ -1,0 +1,15 @@
+---
+# acea.suse_aws.connectivity
+#
+# Smoke test della connessione Systems Manager. Non modifica nulla.
+#
+#   ansible-playbook acea.suse_aws.connectivity
+#   ansible-playbook acea.suse_aws.connectivity -e target_hosts=env_demo
+- name: "Verifica connettivita via AWS Systems Manager"
+  hosts: "{{ target_hosts | default('suse_servers') }}"
+  # I fact non servono: tutto quello che ci interessa lo leggiamo con raw e
+  # slurp, e cosi' il test resta veloce anche su molti host.
+  gather_facts: false
+
+  roles:
+    - role: acea.suse_aws.ssm_connectivity

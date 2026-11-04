@@ -1,0 +1,15 @@
+---
+# Attenzione: sezione opt-in. L'accesso avviene via Session Manager e non
+# dipende da sshd, ma queste modifiche riguardano comunque l'accesso agli host.
+- name: "Impostazioni di sshd"
+  ansible.builtin.lineinfile:
+    path: "{{ baseline_sshd_config }}"
+    regexp: "^#?\\s*{{ item.key }}\\s"
+    line: "{{ item.key }} {{ item.value }}"
+    state: present
+    validate: "/usr/sbin/sshd -t -f %s"
+    backup: true
+  loop: "{{ baseline_sshd_settings | dict2items }}"
+  loop_control:
+    label: "{{ item.key }} {{ item.value }}"
+  notify: Ricarica sshd

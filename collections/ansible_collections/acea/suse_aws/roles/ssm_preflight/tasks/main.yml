@@ -1,0 +1,40 @@
+---
+# Tutti i controlli girano sul nodo di esecuzione (dentro l'EE): nessuna
+# connessione verso gli host target.
+- name: "Il nome del bucket di transito e' obbligatorio"
+  ansible.builtin.assert:
+    that:
+      - ssm_preflight_bucket | length > 0
+    fail_msg: >-
+      ssm_transfer_bucket non e' valorizzato. Impostalo in
+      inventory/group_vars/all.yml, nelle variabili dell'Inventory di AAP
+      oppure come Extra Variable del Job Template.
+
+- name: "Controlli sull'Execution Environment"
+  ansible.builtin.include_tasks: execution_environment.yml
+  tags: [preflight, ee]
+
+- name: "Controlli sulle credenziali AWS"
+  ansible.builtin.include_tasks: aws_identity.yml
+  tags: [preflight, aws]
+
+- name: "Controlli sul bucket di transito"
+  ansible.builtin.include_tasks: transfer_bucket.yml
+  tags: [preflight, s3]
+
+- name: "Controlli sull'istanza target"
+  ansible.builtin.include_tasks: target_instance.yml
+  when: ssm_preflight_instance_id | length > 0
+  tags: [preflight, ssm]
+
+- name: "Riepilogo preflight"
+  ansible.builtin.debug:
+    msg:
+      - "session-manager-plugin : {{ ssm_preflight_plugin_version | default('?') }}"
+      - "boto3 / botocore       : {{ ssm_preflight_boto_version | default('?') }}"
+      - "connection plugin      : {{ ssm_preflight_connection_plugin }}"
+      - "account AWS            : {{ ssm_preflight_caller.account | default('?') }}"
+      - "identita'              : {{ ssm_preflight_caller.arn | default('?') }}"
+      - "bucket di transito     : {{ ssm_preflight_bucket }}"
+      - "istanza verificata     : {{ ssm_preflight_instance_id | default('- nessuna -', true) }}"
+  tags: [preflight]

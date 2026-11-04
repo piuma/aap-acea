@@ -1,0 +1,29 @@
+---
+- name: "Aggiorna i metadati dei repository"
+  ansible.builtin.command: zypper --non-interactive refresh
+  changed_when: false
+  when: zypper_patching_refresh_cache | bool
+
+- name: "Elenca le patch disponibili"
+  ansible.builtin.command: >-
+    zypper --non-interactive list-patches
+    {{ '--category ' ~ zypper_patching_type if zypper_patching_type != 'all' else '' }}
+  changed_when: false
+  failed_when: false
+  register: zypper_patching_available
+
+- name: "Patch disponibili ({{ zypper_patching_type }})"
+  ansible.builtin.debug:
+    var: zypper_patching_available.stdout_lines
+
+- name: "Elenca i pacchetti aggiornabili"
+  ansible.builtin.command: zypper --non-interactive list-updates
+  changed_when: false
+  failed_when: false
+  register: zypper_patching_updates
+  when: zypper_patching_type == 'all'
+
+- name: "Pacchetti aggiornabili"
+  ansible.builtin.debug:
+    var: zypper_patching_updates.stdout_lines
+  when: zypper_patching_type == 'all'

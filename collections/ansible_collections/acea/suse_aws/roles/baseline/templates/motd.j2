@@ -1,0 +1,13 @@
+
+  ╔══════════════════════════════════════════════════════════════════╗
+  ║  Host gestito da Ansible Automation Platform — NON modificare    ║
+  ║  manualmente i file sotto il controllo dei playbook.             ║
+  ╚══════════════════════════════════════════════════════════════════╝
+
+  Host          : {{ inventory_hostname }}
+  Nome EC2      : {{ ec2_name | default('n/d') }}
+  Distribuzione : {{ ansible_facts.distribution }} {{ ansible_facts.distribution_version }}
+  Regione AWS   : {{ aws_region | default('n/d') }}
+  Accesso       : AWS Systems Manager (Session Manager) — niente SSH pubblico
+  Baseline      : applicata il {{ '%Y-%m-%d %H:%M' | strftime }} UTC
+

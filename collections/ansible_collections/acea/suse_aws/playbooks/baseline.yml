@@ -1,0 +1,12 @@
+---
+# acea.suse_aws.baseline
+#
+#   ansible-playbook acea.suse_aws.baseline --check --diff
+#   ansible-playbook acea.suse_aws.baseline
+#   ansible-playbook acea.suse_aws.baseline --tags time,motd
+- name: "Baseline di configurazione SUSE"
+  hosts: "{{ target_hosts | default('suse_servers') }}"
+  gather_facts: true
+
+  roles:
+    - role: acea.suse_aws.baseline

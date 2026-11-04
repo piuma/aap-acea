@@ -1,0 +1,21 @@
+---
+# Dove scrivere il report. Nota: dentro un Execution Environment il filesystem
+# e' effimero, quindi di default il report viene anche stampato nel log del job.
+facts_report_path: /tmp/suse_inventory_report.md
+facts_report_print: true
+
+# Gruppo di inventario su cui iterare durante il rendering.
+facts_report_group: suse_servers
+
+# Servizi systemd di cui mostrare lo stato nella tabella finale.
+facts_report_watched_services:
+  - sshd.service
+  - amazon-ssm-agent.service
+  - nginx.service
+  - chronyd.service
+  - firewalld.service
+
+# Raccolte opzionali: hanno un costo (ogni modulo passa dal bucket S3).
+facts_report_collect_packages: true
+facts_report_collect_services: true
+facts_report_collect_zypper: true

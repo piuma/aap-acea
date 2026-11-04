@@ -1,0 +1,7 @@
+---
+# Fallisce se l'host non risulta una SUSE.
+ssm_connectivity_require_suse: true
+
+# Esegue anche ansible.builtin.ping, che a differenza di `raw` esercita il
+# trasferimento del modulo attraverso il bucket S3. E' il test che conta.
+ssm_connectivity_test_module_transfer: true

@@ -1,0 +1,22 @@
+---
+galaxy_info:
+  role_name: webserver_nginx
+  author: Team Automazione
+  description: >-
+    Installa e configura nginx su SUSE Linux Enterprise pubblicando una pagina
+    di benvenuto con i fact dell'host. Supporta anche la rimozione completa.
+  license: MIT
+  min_ansible_version: "2.15"
+  platforms:
+    - name: SLES
+      versions:
+        - "15"
+    - name: opensuse
+      versions:
+        - all
+  galaxy_tags:
+    - web
+    - nginx
+    - suse
+
+dependencies: []

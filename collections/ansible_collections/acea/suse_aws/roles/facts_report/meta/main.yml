@@ -1,0 +1,19 @@
+---
+galaxy_info:
+  role_name: facts_report
+  author: Team Automazione
+  description: >-
+    Raccoglie fact, pacchetti, servizi e stato della registrazione SUSE dalle
+    istanze, e ne produce un report markdown aggregato.
+  license: MIT
+  min_ansible_version: "2.15"
+  platforms:
+    - name: SLES
+      versions:
+        - "15"
+  galaxy_tags:
+    - reporting
+    - inventory
+    - suse
+
+dependencies: []

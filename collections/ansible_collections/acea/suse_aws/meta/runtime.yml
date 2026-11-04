@@ -1,0 +1,8 @@
+---
+# ansible-core minimo: 2.15 per ansible.builtin.systemd_service e per il
+# supporto stabile ai playbook dentro le collection.
+requires_ansible: ">=2.15.0"
+
+action_groups: {}
+
+plugin_routing: {}

@@ -1,0 +1,24 @@
+---
+- name: "L'host e' una SUSE"
+  ansible.builtin.assert:
+    that:
+      - ansible_facts.os_family == 'Suse'
+    fail_msg: >-
+      webserver_nginx supporta solo SUSE
+      (os_family={{ ansible_facts.os_family | default('non raccolto') }}).
+
+- name: "Lo stato richiesto e' valido"
+  ansible.builtin.assert:
+    that:
+      - webserver_nginx_state in ['present', 'absent']
+    fail_msg: "webserver_nginx_state deve essere 'present' o 'absent'."
+
+- name: "Installazione e configurazione"
+  ansible.builtin.include_tasks: install.yml
+  when: webserver_nginx_state == 'present'
+  tags: [webserver, install]
+
+- name: "Rimozione"
+  ansible.builtin.include_tasks: remove.yml
+  when: webserver_nginx_state == 'absent'
+  tags: [webserver, remove]

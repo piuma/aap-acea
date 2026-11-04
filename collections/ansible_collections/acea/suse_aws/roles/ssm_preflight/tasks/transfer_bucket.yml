@@ -1,0 +1,136 @@
+---
+- name: "Il bucket di transito esiste ed e' leggibile"
+  amazon.aws.s3_bucket_info:
+    name: "{{ ssm_preflight_bucket }}"
+    region: "{{ ssm_preflight_region }}"
+    bucket_facts:
+      bucket_location: true
+      bucket_versioning: true
+      bucket_encryption: true
+      bucket_policy: true
+  register: ssm_preflight_bucket_info
+
+- name: "Normalizza i dati del bucket"
+  ansible.builtin.set_fact:
+    ssm_preflight_bucket_versioning: >-
+      {{ ssm_preflight_bucket_info.buckets[0].bucket_versioning.status | default('Disabled', true) }}
+    ssm_preflight_bucket_sse_rules: >-
+      {{ ssm_preflight_bucket_info.buckets[0].bucket_encryption.server_side_encryption_configuration.rules
+         | default([], true) }}
+    ssm_preflight_bucket_policy_text: >-
+      {{ ssm_preflight_bucket_info.buckets[0].bucket_policy | default('', true) | string }}
+
+- name: "Stato del bucket"
+  ansible.builtin.debug:
+    msg:
+      - "bucket              : {{ ssm_preflight_bucket }}"
+      - "location            : {{ ssm_preflight_bucket_info.buckets[0].bucket_location.location_constraint | default('us-east-1', true) }}"
+      - "versioning          : {{ ssm_preflight_bucket_versioning }}"
+      - "default encryption  : {{ ssm_preflight_bucket_sse_rules | map(attribute='apply_server_side_encryption_by_default') | map(attribute='sse_algorithm') | join(', ') | default('nessuna', true) }}"
+      - "SSE dichiarata dal plugin: {{ ansible_aws_ssm_bucket_sse_mode | default('nessuna (si usa la default del bucket)', true) }}"
+
+- name: "Avviso: versioning attivo sul bucket di transito"
+  ansible.builtin.debug:
+    msg: >-
+      ATTENZIONE: il bucket ha il versioning attivo. Il plugin aws_ssm cancella
+      gli oggetti temporanei, ma le versioni precedenti restano e contengono il
+      payload dei moduli trasferiti (variabili comprese). Usa un bucket dedicato
+      con versioning disabilitato.
+  when: ssm_preflight_bucket_versioning == 'Enabled'
+
+# ---------------------------------------------------------------------------
+# SSE-C: incompatibile con il connection plugin
+# ---------------------------------------------------------------------------
+# Il plugin genera presigned URL e fa trasferire i file alla VM con curl,
+# emettendo al massimo gli header x-amz-server-side-encryption[-aws-kms-key-id].
+# Non emette mai x-amz-server-side-encryption-customer-*: se la bucket policy
+# impone SSE-C, ogni PUT/GET viene rifiutato con 403.
+- name: "La bucket policy impone SSE-C?"
+  ansible.builtin.assert:
+    that:
+      - "'server-side-encryption-customer-algorithm' not in ssm_preflight_bucket_policy_text"
+    fail_msg: >-
+      La bucket policy di {{ ssm_preflight_bucket }} richiede SSE-C
+      (x-amz-server-side-encryption-customer-algorithm), che il connection
+      plugin aws_ssm NON sa usare: trasferisce i file con presigned URL + curl
+      e non invia mai gli header SSE-C. Risultato: i task `raw` funzionano, ogni
+      modulo Ansible fallisce con 403. Usa un bucket di transito dedicato con
+      SSE-S3 o SSE-KMS — vedi aws/README.md, sezione "SSE-C".
+    success_msg: "La bucket policy non impone SSE-C."
+  when: ssm_preflight_bucket_policy_text | length > 0
+
+- name: "Avviso: il plugin dichiara una SSE che non coincide con la default del bucket"
+  ansible.builtin.debug:
+    msg: >-
+      ansible_aws_ssm_bucket_sse_mode={{ ansible_aws_ssm_bucket_sse_mode }} ma la
+      default encryption del bucket e'
+      {{ ssm_preflight_bucket_sse_rules | map(attribute='apply_server_side_encryption_by_default') | map(attribute='sse_algorithm') | join(', ') }}.
+      Non e' un errore di per se', ma se una bucket policy impone un algoritmo
+      specifico il PUT verra' rifiutato: in dubbio, lascia
+      ansible_aws_ssm_bucket_sse_mode non definita e affidati alla default del bucket.
+  when:
+    - ansible_aws_ssm_bucket_sse_mode is defined
+    - ssm_preflight_bucket_sse_rules | length > 0
+    - ansible_aws_ssm_bucket_sse_mode not in
+      (ssm_preflight_bucket_sse_rules | map(attribute='apply_server_side_encryption_by_default') | map(attribute='sse_algorithm') | list)
+
+# ---------------------------------------------------------------------------
+# Prova reale: e' il test che conta davvero
+# ---------------------------------------------------------------------------
+- name: "Prova reale di scrittura e cancellazione sul bucket"
+  when: ssm_preflight_test_bucket_rw | bool
+  block:
+    - name: "Crea un file temporaneo"
+      ansible.builtin.tempfile:
+        state: file
+        suffix: .preflight
+      register: ssm_preflight_tmp
+      changed_when: false
+
+    - name: "Riempi il file temporaneo"
+      ansible.builtin.copy:
+        dest: "{{ ssm_preflight_tmp.path }}"
+        content: "preflight {{ '%Y-%m-%dT%H:%M:%S' | strftime }}\n"
+        mode: "0600"
+      changed_when: false
+
+    - name: "PutObject"
+      amazon.aws.s3_object:
+        bucket: "{{ ssm_preflight_bucket }}"
+        object: "/aap-preflight/{{ ansible_hostname | default('ee') }}.txt"
+        src: "{{ ssm_preflight_tmp.path }}"
+        mode: put
+        # Riproduce fedelmente il comportamento del connection plugin: se
+        # ansible_aws_ssm_bucket_sse_mode non e' definita, nessun header
+        # x-amz-server-side-encryption e si applica la default del bucket.
+        encrypt: "{{ ansible_aws_ssm_bucket_sse_mode is defined }}"
+        encryption_mode: "{{ ansible_aws_ssm_bucket_sse_mode | default(omit, true) }}"
+        region: "{{ ssm_preflight_region }}"
+
+    - name: "DeleteObject"
+      amazon.aws.s3_object:
+        bucket: "{{ ssm_preflight_bucket }}"
+        object: "/aap-preflight/{{ ansible_hostname | default('ee') }}.txt"
+        mode: delobj
+        region: "{{ ssm_preflight_region }}"
+  rescue:
+    - name: "Il bucket non e' utilizzabile per i trasferimenti"
+      ansible.builtin.fail:
+        msg: >-
+          Scrittura o cancellazione su s3://{{ ssm_preflight_bucket }} fallita.
+          Tre cause tipiche.
+          (1) Permessi: all'identita' di AAP servono s3:GetObject, s3:PutObject,
+          s3:DeleteObject, s3:ListBucket e s3:GetBucketLocation.
+          (2) SSE-C: se la bucket policy la impone, ne' questo modulo ne' il
+          connection plugin aws_ssm sanno soddisfarla — serve un bucket di
+          transito con SSE-S3 o SSE-KMS.
+          (3) Algoritmo imposto: se la policy pretende un SSE specifico, allinea
+          ansible_aws_ssm_bucket_sse_mode (AES256 oppure aws:kms) oppure lasciala
+          non definita e affidati alla default encryption del bucket.
+  always:
+    - name: "Pulisci il file temporaneo"
+      ansible.builtin.file:
+        path: "{{ ssm_preflight_tmp.path | default('') }}"
+        state: absent
+      when: ssm_preflight_tmp.path is defined
+      changed_when: false

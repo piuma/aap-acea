@@ -1,0 +1,39 @@
+---
+# ===========================================================================
+# Parametri della configurazione AAP (config-as-code)
+# ===========================================================================
+# Modifica questo file, non il playbook.
+
+aap_organization: "Default"
+
+# --- Sorgente del progetto -------------------------------------------------
+aap_project_name: "aap-acea"
+aap_project_scm_url: "https://github.com/ORGANIZZAZIONE/aap-acea.git"
+aap_project_branch: "main"
+# Nome di una credential SCM gia' esistente in AAP; lascia "" per repo pubblici.
+aap_project_scm_credential: ""
+
+# --- Execution Environment -------------------------------------------------
+aap_ee_name: "AWS SSM EE"
+aap_ee_image: "quay.io/ORGANIZZAZIONE/aap-acea-aws-ssm-ee:latest"
+# Nome di una credential di tipo "Container Registry"; "" se il registry e' pubblico.
+aap_ee_registry_credential: ""
+
+# --- Credential AWS --------------------------------------------------------
+aap_aws_credential_name: "AWS - automazione SUSE"
+# Passali come extra vars o da vault, NON committarli:
+#   -e aws_access_key=... -e aws_secret_key=...
+aws_access_key: ""
+aws_secret_key: ""
+aws_security_token: ""
+
+# --- Ambiente AWS ----------------------------------------------------------
+aap_aws_region: "eu-south-1"
+# Bucket di transito. Deve poter accettare PUT con SSE-S3/SSE-KMS (o con la sola
+# default encryption del bucket): SSE-C non e' utilizzabile dal connection
+# plugin. Vedi aws/README.md, sezione "SSE-C".
+aap_ssm_bucket: "aws-aceh-aap-tst-s3-01"
+
+# --- Inventario ------------------------------------------------------------
+aap_inventory_name: "AWS - EC2 SUSE"
+aap_inventory_source_name: "EC2 dinamico (tag AnsibleManaged)"

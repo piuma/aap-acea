@@ -1,0 +1,12 @@
+---
+- name: Registra l'intervento di patching
+  ansible.builtin.lineinfile:
+    path: "{{ zypper_patching_log_path }}"
+    line: >-
+      {{ '%Y-%m-%dT%H:%M:%S' | strftime }} type={{ zypper_patching_type }}
+      reboot_allowed={{ zypper_patching_allow_reboot }} eseguito da Ansible
+    create: true
+    owner: root
+    group: root
+    mode: "0640"
+  when: zypper_patching_write_log | bool

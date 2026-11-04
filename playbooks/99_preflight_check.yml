@@ -1,0 +1,5 @@
+---
+# Entry point per il Job Template "SUSE / 99 - Preflight check EE e AWS".
+# Logica: ruolo acea.suse_aws.ssm_preflight. Gira solo in locale, nell'EE.
+- name: "99 - Preflight check Execution Environment e AWS"
+  ansible.builtin.import_playbook: acea.suse_aws.preflight

@@ -1,0 +1,53 @@
+---
+# ===========================================================================
+# Execution Environment per automazione AWS via Systems Manager
+# ===========================================================================
+# Il punto chiave: il binario `session-manager-plugin` deve stare QUI, dentro
+# l'EE che esegue il job, NON sull'host target. Gli EE standard di Red Hat non
+# lo contengono, quindi un EE custom e' obbligatorio.
+#
+# Build:  ./build.sh
+# Schema: ansible-builder >= 3.0
+version: 3
+
+images:
+  base_image:
+    # EE minimale supportato da Red Hat (serve login a registry.redhat.io).
+    # Verifica il path per la tua versione di AAP:
+    #   registry.redhat.io/ansible-automation-platform-25/ee-minimal-rhel9:latest
+    #   registry.redhat.io/ansible-automation-platform-26/ee-minimal-rhel9:latest
+    #   registry.redhat.io/ansible-automation-platform/ee-minimal-rhel9:latest
+    # Alternativa community (senza subscription): quay.io/ansible/awx-ee:latest
+    name: registry.redhat.io/ansible-automation-platform-25/ee-minimal-rhel9:latest
+
+dependencies:
+  galaxy: requirements.yml
+  python: requirements.txt
+  system: bindep.txt
+
+additional_build_steps:
+  prepend_base:
+    - LABEL org.opencontainers.image.title="aap-acea-aws-ssm-ee"
+    - LABEL org.opencontainers.image.description="EE con session-manager-plugin per connessioni aws_ssm verso EC2 SUSE"
+    - LABEL org.opencontainers.image.vendor="Team Automazione"
+
+  append_final:
+    # Gli EE Red Hat girano come UID 1000: per installare serve root.
+    - USER root
+
+    # --- AWS Session Manager plugin -------------------------------------
+    # Per immagini arm64 sostituire linux_64bit -> linux_arm64
+    - >-
+      RUN curl -fsSL -o /tmp/session-manager-plugin.rpm
+      "https://s3.amazonaws.com/session-manager-downloads/plugin/latest/linux_64bit/session-manager-plugin.rpm"
+      && rpm -Uvh --nodeps /tmp/session-manager-plugin.rpm
+      && rm -f /tmp/session-manager-plugin.rpm
+      && ln -sf /usr/local/sessionmanagerplugin/bin/session-manager-plugin
+                /usr/local/bin/session-manager-plugin
+      && chmod 0755 /usr/local/sessionmanagerplugin/bin/session-manager-plugin
+
+    # Verifica in fase di build: se il plugin non parte, la build fallisce
+    # subito invece di farlo scoprire al primo job.
+    - RUN /usr/local/bin/session-manager-plugin --version
+
+    - USER 1000

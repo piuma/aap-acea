@@ -1,0 +1,40 @@
+{% set hosts = groups[facts_report_group] | default([]) %}
+# Report inventario SUSE — {{ '%Y-%m-%d %H:%M' | strftime }} UTC
+
+Gruppo analizzato: `{{ facts_report_group }}`
+Host raggiunti: **{{ hosts | length }}**
+
+| Instance ID | Nome | Distro | Kernel | vCPU | RAM (MB) | Uptime (gg) | Pacchetti |
+|---|---|---|---|---:|---:|---:|---:|
+{% for h in hosts %}
+{% set f = hostvars[h].ansible_facts | default({}) %}
+| `{{ h }}` | {{ hostvars[h].ec2_name | default('-') }} | {{ f.distribution | default('?') }} {{ f.distribution_version | default('') }} | {{ f.kernel | default('?') }} | {{ f.processor_vcpus | default('?') }} | {{ f.memtotal_mb | default('?') }} | {{ (f.uptime_seconds | default(0) / 86400) | round(1) }} | {{ f.packages | default({}) | length }} |
+{% endfor %}
+
+## Filesystem
+
+{% for h in hosts %}
+### `{{ h }}` — {{ hostvars[h].ec2_name | default('-') }}
+
+| Mount | FS | Totale | Disponibile | Uso |
+|---|---|---:|---:|---:|
+{% for m in hostvars[h].ansible_facts.mounts | default([]) if not m.mount.startswith('/sys') and not m.mount.startswith('/proc') %}
+| {{ m.mount }} | {{ m.fstype }} | {{ m.size_total | human_readable }} | {{ m.size_available | human_readable }} | {{ (100 - (m.size_available / m.size_total * 100)) | round(1) if m.size_total > 0 else 0 }}% |
+{% endfor %}
+
+{% endfor %}
+
+## Servizi sorvegliati
+
+| Instance ID |{% for w in facts_report_watched_services %} {{ w | replace('.service', '') }} |{% endfor %}
+
+|---|{% for w in facts_report_watched_services %}---|{% endfor %}
+
+{% for h in hosts %}
+{% set svc = hostvars[h].ansible_facts.services | default({}) %}
+| `{{ h }}` |{% for w in facts_report_watched_services %} {{ svc[w].state if w in svc else '—' }} |{% endfor %}
+
+{% endfor %}
+
+---
+*Generato dal ruolo `acea.suse_aws.facts_report` — connessione `amazon.aws.aws_ssm`, nessun accesso SSH.*

@@ -1,0 +1,47 @@
+---
+namespace: acea
+name: suse_aws
+version: 1.0.0
+
+readme: README.md
+
+authors:
+  - Team Automazione <automazione@example.com>
+
+description: >-
+  Automazione di istanze SUSE Linux Enterprise su AWS gestite tramite
+  Systems Manager (Session Manager), senza SSH ne' bastion host.
+
+license:
+  - MIT
+
+tags:
+  - aws
+  - ssm
+  - suse
+  - sles
+  - linux
+  - patching
+  - webserver
+
+# Collection richieste a runtime dai ruoli di questa collection.
+# Vengono risolte automaticamente da `ansible-galaxy collection install`.
+#
+# Qui amazon.aws basta a >=9.0.0, perche' i ruoli usano solo i suoi MODULI
+# (aws_caller_info, s3_bucket_info, s3_object, ec2_instance_info). Il CONNECTION
+# PLUGIN aws_ssm richiede invece amazon.aws >=10.0.0 ed e' una scelta di
+# inventario, non del ruolo: vedi collections/requirements.yml del progetto.
+dependencies:
+  amazon.aws: ">=9.0.0"
+  community.aws: ">=9.0.0"
+  community.general: ">=10.0.0"
+  ansible.posix: ">=1.5.4"
+
+repository: https://github.com/ORGANIZZAZIONE/aap-acea
+documentation: https://github.com/ORGANIZZAZIONE/aap-acea/blob/main/README.md
+issues: https://github.com/ORGANIZZAZIONE/aap-acea/issues
+
+build_ignore:
+  - "*.tar.gz"
+  - .github
+  - tests/output

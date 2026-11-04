@@ -1,0 +1,34 @@
+---
+- name: "Verifica se serve un riavvio"
+  ansible.builtin.command: zypper --non-interactive needs-rebooting
+  changed_when: false
+  # exit 0 = non serve riavviare, exit 102 = riavvio necessario
+  failed_when: zypper_patching_needs_reboot.rc not in [0, 102]
+  register: zypper_patching_needs_reboot
+
+- name: "Esito del controllo"
+  ansible.builtin.debug:
+    msg: >-
+      {{ 'RIAVVIO NECESSARIO' if zypper_patching_needs_reboot.rc == 102
+         else 'nessun riavvio necessario' }} su {{ inventory_hostname }}
+
+- name: "Riavvia l'istanza"
+  # Il reboot funziona anche su connessione aws_ssm: il plugin riapre la
+  # sessione Systems Manager. Serve pero' un timeout generoso, perche' dopo il
+  # boot anche l'SSM Agent deve ri-registrarsi.
+  ansible.builtin.reboot:
+    reboot_timeout: "{{ zypper_patching_reboot_timeout }}"
+    post_reboot_delay: "{{ zypper_patching_post_reboot_delay }}"
+    test_command: /usr/bin/true
+  when:
+    - zypper_patching_needs_reboot.rc == 102
+    - zypper_patching_allow_reboot | bool
+
+- name: "Riavvio richiesto ma non autorizzato"
+  ansible.builtin.debug:
+    msg: >-
+      ATTENZIONE: {{ inventory_hostname }} richiede un riavvio che non e' stato
+      eseguito. Rilancia con zypper_patching_allow_reboot=true.
+  when:
+    - zypper_patching_needs_reboot.rc == 102
+    - not (zypper_patching_allow_reboot | bool)

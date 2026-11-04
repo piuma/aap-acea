@@ -1,0 +1,52 @@
+---
+# Interruttori per sezione: permettono di usare il ruolo a pezzi, p.es. solo
+# il tempo, oppure tutto tranne sshd.
+baseline_manage_packages: true
+baseline_manage_time: true
+baseline_manage_users: true
+baseline_manage_sysctl: true
+baseline_manage_motd: true
+baseline_manage_sshd: false      # opt-in esplicito
+
+# --- Pacchetti -------------------------------------------------------------
+baseline_packages:
+  - chrony
+  - vim
+  - curl
+  - lsof
+  - sysstat
+
+# --- Tempo -----------------------------------------------------------------
+baseline_timezone: "Europe/Rome"
+baseline_ntp_servers:
+  # Amazon Time Sync Service: link-local, raggiungibile da qualunque VPC
+  # senza uscire su Internet.
+  - "169.254.169.123"
+
+# --- Utenti operativi ------------------------------------------------------
+baseline_admin_group: opsadm
+baseline_admin_sudo_nopasswd: true
+# Elenco vuoto di default: popolalo nelle group_vars o nelle Extra Variables.
+#   baseline_admin_users:
+#     - name: mrossi
+#       comment: "Mario Rossi"
+#       ssh_key: "ssh-ed25519 AAAA... mrossi@example.com"
+baseline_admin_users: []
+
+# --- Kernel / rete ---------------------------------------------------------
+baseline_sysctl_file: /etc/sysctl.d/99-ansible-baseline.conf
+baseline_sysctl:
+  net.ipv4.conf.all.accept_redirects: "0"
+  net.ipv4.conf.all.send_redirects: "0"
+  net.ipv4.conf.all.rp_filter: "1"
+  net.ipv4.tcp_syncookies: "1"
+  kernel.randomize_va_space: "2"
+
+# --- sshd (applicato solo se baseline_manage_sshd e' true) -----------------
+baseline_sshd_config: /etc/ssh/sshd_config
+baseline_sshd_settings:
+  PermitRootLogin: "no"
+  PasswordAuthentication: "no"
+  X11Forwarding: "no"
+  ClientAliveInterval: "300"
+  ClientAliveCountMax: "2"

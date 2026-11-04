@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{{ webserver_nginx_site_title }}</title>
+  <style>
+    :root { color-scheme: light dark; }
+    body {
+      font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+      margin: 0; padding: 3rem 1rem; line-height: 1.6;
+      background: #f6f7f9; color: #1b1d21;
+    }
+    @media (prefers-color-scheme: dark) {
+      body { background: #121417; color: #e7e9ec; }
+      .card { background: #1b1e23 !important; border-color: #2b2f36 !important; }
+      td { border-color: #2b2f36 !important; }
+      th { color: #9aa3ad !important; }
+    }
+    .card {
+      max-width: 44rem; margin: 0 auto; background: #fff;
+      border: 1px solid #e3e6ea; border-radius: 12px; padding: 2rem;
+    }
+    h1 { margin-top: 0; font-size: 1.5rem; }
+    table { border-collapse: collapse; width: 100%; margin-top: 1.5rem; }
+    th, td { text-align: left; padding: .5rem .25rem; border-bottom: 1px solid #e3e6ea; }
+    th { width: 14rem; font-weight: 600; color: #5b636d; font-size: .9rem; }
+    code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: .9em; }
+    .pill {
+      display: inline-block; padding: .15rem .6rem; border-radius: 999px;
+      background: #e8f3ec; color: #1d6b3e; font-size: .8rem; font-weight: 600;
+    }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <span class="pill">deploy via Ansible Automation Platform</span>
+    <h1>{{ webserver_nginx_site_title }}</h1>
+    <p>
+      Questa pagina è stata scritta dal ruolo
+      <code>acea.suse_aws.webserver_nginx</code>, eseguito da AAP e collegato
+      alla VM <strong>senza SSH</strong>: la sessione passa da AWS Systems
+      Manager e i file transitano su un bucket S3 dedicato.
+    </p>
+
+    <table>
+      <tr><th>Instance ID</th><td><code>{{ ansible_aws_ssm_instance_id | default(inventory_hostname) }}</code></td></tr>
+      <tr><th>Nome EC2</th><td>{{ ec2_name | default('n/d') }}</td></tr>
+      <tr><th>Hostname</th><td>{{ ansible_facts.fqdn }}</td></tr>
+      <tr><th>Distribuzione</th><td>{{ ansible_facts.distribution }} {{ ansible_facts.distribution_version }}</td></tr>
+      <tr><th>Kernel</th><td><code>{{ ansible_facts.kernel }}</code></td></tr>
+      <tr><th>Architettura</th><td>{{ ansible_facts.architecture }}</td></tr>
+      <tr><th>IP privato</th><td><code>{{ ansible_facts.default_ipv4.address | default('n/d') }}</code></td></tr>
+      <tr><th>Regione AWS</th><td>{{ aws_region | default('n/d') }}</td></tr>
+      <tr><th>Connessione Ansible</th><td><code>{{ ansible_connection }}</code></td></tr>
+      <tr><th>Ultimo deploy</th><td>{{ '%Y-%m-%d %H:%M:%S' | strftime }} UTC</td></tr>
+      <tr><th>Referente</th><td>{{ webserver_nginx_owner }}</td></tr>
+    </table>
+  </div>
+</body>
+</html>

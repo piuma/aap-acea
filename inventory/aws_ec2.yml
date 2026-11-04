@@ -1,0 +1,60 @@
+---
+# Inventario dinamico AWS EC2.
+# Il nome file DEVE terminare con `aws_ec2.yml` o `aws_ec2.yaml`.
+#
+# In AAP: Resources > Inventories > <inventory> > Sources > Add
+#   Source            : Sourced from a Project
+#   Project           : aap-acea
+#   Inventory file    : inventory/aws_ec2.yml
+#   Credential        : <Amazon Web Services>
+#   Update on launch  : yes
+plugin: amazon.aws.aws_ec2
+
+regions:
+  - eu-south-1
+
+# Filtra solo le istanze che vogliamo gestire. Taggare le EC2 con
+# AnsibleManaged=true evita di importare tutto l'account.
+filters:
+  instance-state-name: running
+  "tag:AnsibleManaged": "true"
+
+# IMPORTANTE: con il connection plugin aws_ssm l'host deve essere l'instance-id
+# (i-0123...), perche' il plugin apre la sessione su quell'ID.
+hostnames:
+  - instance-id
+
+compose:
+  # Ridondante rispetto a hostnames, ma rende esplicito l'ID anche se un giorno
+  # si cambia la strategia di naming.
+  ansible_aws_ssm_instance_id: instance_id
+  # Nessuna connettivita' IP diretta: ansible_host serve solo per leggibilita'.
+  ansible_host: instance_id
+  ec2_name: tags.Name | default(instance_id)
+  ec2_instance_type: instance_type
+  ec2_private_ip: private_ip_address | default('n/a')
+
+keyed_groups:
+  - key: tags.Environment | default('untagged')
+    prefix: env
+    separator: "_"
+  - key: tags.Role | default('generic')
+    prefix: role
+    separator: "_"
+  - key: placement.availability_zone
+    prefix: az
+    separator: "_"
+
+groups:
+  # Tutto cio' che e' SUSE finisce in suse_servers, che e' il gruppo a cui sono
+  # agganciate le variabili di connessione SSM (inventory/group_vars/).
+  suse_servers: >-
+    (tags.OS | default('') | lower) in ['sles', 'suse', 'opensuse']
+    or 'suse' in (platform_details | default('') | lower)
+
+strict: false
+
+cache: true
+cache_plugin: jsonfile
+cache_timeout: 300
+cache_connection: /tmp/aws_ec2_inventory_cache

@@ -1,0 +1,19 @@
+---
+galaxy_info:
+  role_name: ssm_connectivity
+  author: Team Automazione
+  description: >-
+    Smoke test della connessione amazon.aws.aws_ssm verso un host SUSE: utente
+    di sessione, privilege escalation, trasferimento modulo via bucket S3.
+  license: MIT
+  min_ansible_version: "2.15"
+  platforms:
+    - name: SLES
+      versions:
+        - "15"
+  galaxy_tags:
+    - aws
+    - ssm
+    - diagnostics
+
+dependencies: []

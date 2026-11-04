@@ -1,0 +1,38 @@
+---
+# Eseguito sugli host target. Il rendering sta in render.yml, da richiamare
+# con include_role/tasks_from su localhost.
+- name: "Inventario dei pacchetti installati"
+  ansible.builtin.package_facts:
+    manager: auto
+  when: facts_report_collect_packages | bool
+
+- name: "Stato dei servizi systemd"
+  ansible.builtin.service_facts:
+  when: facts_report_collect_services | bool
+
+- name: "Raccolta specifica zypper"
+  when: facts_report_collect_zypper | bool
+  block:
+    - name: "Repository configurati"
+      ansible.builtin.command: zypper --non-interactive repos
+      changed_when: false
+      failed_when: false
+      register: facts_report_zypper_repos
+
+    - name: "Stato della registrazione SUSEConnect (SCC o RMT)"
+      ansible.builtin.command: SUSEConnect --status-text
+      changed_when: false
+      failed_when: false
+      register: facts_report_suseconnect
+
+- name: "Riepilogo host"
+  ansible.builtin.debug:
+    msg:
+      - "hostname     : {{ ansible_facts.fqdn }}"
+      - "distro       : {{ ansible_facts.distribution }} {{ ansible_facts.distribution_version }}"
+      - "kernel       : {{ ansible_facts.kernel }}"
+      - "architettura : {{ ansible_facts.architecture }}"
+      - "cpu / ram    : {{ ansible_facts.processor_vcpus }} vCPU / {{ ansible_facts.memtotal_mb }} MB"
+      - "uptime       : {{ (ansible_facts.uptime_seconds / 86400) | round(1) }} giorni"
+      - "pacchetti    : {{ ansible_facts.packages | default({}) | length }}"
+      - "registrazione: {{ 'SCC/RMT ok' if (facts_report_suseconnect.rc | default(1)) == 0 else 'non registrato o SUSEConnect assente' }}"

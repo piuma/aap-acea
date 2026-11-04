@@ -1,0 +1,5 @@
+---
+# Entry point per il Job Template "SUSE / 30 - Deploy webserver nginx".
+# Logica: ruolo acea.suse_aws.webserver_nginx.
+- name: "30 - Webserver nginx su SUSE"
+  ansible.builtin.import_playbook: acea.suse_aws.webserver

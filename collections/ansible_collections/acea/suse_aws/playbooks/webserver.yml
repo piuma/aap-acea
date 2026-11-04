@@ -1,0 +1,50 @@
+---
+# acea.suse_aws.webserver
+#
+#   ansible-playbook acea.suse_aws.webserver \
+#     -e webserver_nginx_site_title="Demo ACEA"
+#
+#   # rimozione
+#   ansible-playbook acea.suse_aws.webserver -e webserver_nginx_state=absent
+- name: "Webserver nginx su SUSE"
+  hosts: "{{ target_hosts | default('suse_servers') }}"
+  gather_facts: true
+
+  roles:
+    - role: acea.suse_aws.webserver_nginx
+
+  post_tasks:
+    - name: "Verifica funzionale"
+      when: webserver_nginx_state | default('present') == 'present'
+      block:
+        - name: "nginx risponde sull'health check"
+          ansible.builtin.uri:
+            url: "http://127.0.0.1:{{ webserver_nginx_port }}/healthz"
+            return_content: true
+            status_code: 200
+          register: webserver_health
+          retries: 5
+          delay: 3
+          until: webserver_health is succeeded
+
+        - name: "La home page contiene il titolo atteso"
+          ansible.builtin.uri:
+            url: "http://127.0.0.1:{{ webserver_nginx_port }}/"
+            return_content: true
+            status_code: 200
+          register: webserver_home
+
+        - name: "Titolo servito"
+          ansible.builtin.debug:
+            msg: "{{ webserver_home.content | regex_search('<h1>(.*)</h1>', '\\1') | first | default('?') }}"
+
+        - name: "Come raggiungerla dall'esterno"
+          ansible.builtin.debug:
+            msg: >-
+              La pagina e' raggiungibile solo dentro la VPC: in questa demo gli
+              host non espongono la porta {{ webserver_nginx_port }} a Internet.
+              Per provarla dal tuo portatile usa il port forwarding di Session Manager:
+              aws ssm start-session
+              --target {{ ansible_aws_ssm_instance_id | default(inventory_hostname) }}
+              --document-name AWS-StartPortForwardingSession
+              --parameters '{"portNumber":["{{ webserver_nginx_port }}"],"localPortNumber":["8080"]}'

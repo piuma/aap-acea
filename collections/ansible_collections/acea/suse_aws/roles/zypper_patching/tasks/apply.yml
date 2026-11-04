@@ -1,0 +1,30 @@
+---
+- name: "Applica le patch di categoria {{ zypper_patching_type }}"
+  community.general.zypper:
+    name: "*"
+    type: patch
+    state: latest
+    update_cache: true
+    extra_args: "--category {{ zypper_patching_type }}"
+  when: zypper_patching_type in ['security', 'recommended']
+  register: zypper_patching_patch_result
+  notify: Registra l'intervento di patching
+
+- name: "Aggiorna tutti i pacchetti (zypper update)"
+  community.general.zypper:
+    name: "*"
+    state: latest
+    update_cache: true
+  when: zypper_patching_type == 'all'
+  register: zypper_patching_update_result
+  notify: Registra l'intervento di patching
+
+- name: "Servizi che usano ancora librerie sostituite (zypper ps)"
+  ansible.builtin.command: zypper --non-interactive ps -s
+  changed_when: false
+  failed_when: false
+  register: zypper_patching_ps
+
+- name: "Esito di zypper ps"
+  ansible.builtin.debug:
+    var: zypper_patching_ps.stdout_lines

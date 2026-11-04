@@ -1,0 +1,10 @@
+---
+- name: Riavvia chronyd
+  ansible.builtin.systemd_service:
+    name: chronyd
+    state: restarted
+
+- name: Ricarica sshd
+  ansible.builtin.systemd_service:
+    name: sshd
+    state: reloaded

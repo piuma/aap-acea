@@ -1,0 +1,62 @@
+---
+# ---------------------------------------------------------------------------
+# Connessione via AWS Systems Manager (nessuna porta 22, nessuna chiave SSH)
+# ---------------------------------------------------------------------------
+# Il plugin e' amazon.aws.aws_ssm a partire da amazon.aws 10.0.0; prima di
+# quella versione si chiamava community.aws.aws_ssm. Si cambia da un solo
+# punto: ssm_connection_plugin in group_vars/all.yml.
+ansible_connection: "{{ ssm_connection_plugin | default('amazon.aws.aws_ssm') }}"
+
+ansible_aws_ssm_region: "{{ aws_region }}"
+ansible_aws_ssm_bucket_name: "{{ ssm_transfer_bucket }}"
+
+# 'virtual' e' consigliato quando bucket e istanza non sono nella stessa region;
+# con bucket co-locato va bene anche 'auto' (default).
+ansible_aws_ssm_s3_addressing_style: virtual
+
+# ---------------------------------------------------------------------------
+# Cifratura degli oggetti temporanei sul bucket di transito
+# ---------------------------------------------------------------------------
+# Il plugin sa dichiarare SOLTANTO due modalita':
+#   AES256   -> SSE-S3
+#   aws:kms  -> SSE-KMS (con ansible_aws_ssm_bucket_sse_kms_key_id)
+#
+# SSE-C (Server-Side Encryption with Customer-Provided Keys) NON e' supportato:
+# il plugin genera presigned URL e fa scaricare/caricare i file alla VM con
+# curl, senza mai emettere gli header
+# x-amz-server-side-encryption-customer-{algorithm,key,key-MD5}.
+# Se il bucket IMPONE SSE-C via bucket policy, ogni trasferimento viene
+# rifiutato con 403: i task `raw` passano, `ping` no. Vedi aws/README.md.
+#
+# Qui la variabile resta volutamente NON definita: senza header S3 applica la
+# default encryption configurata sul bucket, che e' il comportamento corretto
+# nella maggior parte dei casi. Decommenta solo se devi forzare una modalita'.
+#
+# ansible_aws_ssm_bucket_sse_mode: AES256
+# ansible_aws_ssm_bucket_sse_mode: "aws:kms"
+# ansible_aws_ssm_bucket_sse_kms_key_id: "arn:aws:kms:eu-south-1:123456789012:key/..."
+
+# Path del binario session-manager-plugin dentro l'Execution Environment.
+# (il plugin cerca prima /usr/local/bin/session-manager-plugin, poi il PATH)
+ansible_aws_ssm_plugin: /usr/local/bin/session-manager-plugin
+
+# Timeout di sessione e retry. ATTENZIONE: l'opzione si chiama
+# reconnection_retries ma la variabile e' ansible_aws_ssm_retries.
+ansible_aws_ssm_timeout: 120
+ansible_aws_ssm_retries: 3
+
+# ---------------------------------------------------------------------------
+# Privilege escalation
+# ---------------------------------------------------------------------------
+# Il plugin aws_ssm IGNORA remote_user / ansible_user: la sessione parte come
+# l'utente definito dal documento Session Manager (di default `ssm-user`).
+# Per operare da root serve become.
+ansible_become: true
+ansible_become_method: ansible.builtin.sudo
+ansible_become_user: root
+
+# ---------------------------------------------------------------------------
+# Target SUSE Linux Enterprise Server
+# ---------------------------------------------------------------------------
+ansible_python_interpreter: /usr/bin/python3
+ansible_shell_type: sh

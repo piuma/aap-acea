@@ -1,0 +1,21 @@
+---
+# acea.suse_aws.preflight
+#
+# Diagnostica i prerequisiti dell'Execution Environment e dell'ambiente AWS.
+# Gira solo sul nodo di esecuzione: non apre nessuna sessione verso i target.
+#
+#   ansible-playbook acea.suse_aws.preflight \
+#     -e aws_region=eu-south-1 \
+#     -e ssm_transfer_bucket=acea-aap-ssm-transfer \
+#     -e ssm_preflight_instance_id=i-0123456789abcdef0
+#
+# Nota: `localhost` implicito non eredita inventory/group_vars/all.yml, quindi
+# aws_region e ssm_transfer_bucket vanno passati come extra vars (in AAP:
+# Extra Variables del Job Template).
+- name: "Preflight — Execution Environment e AWS"
+  hosts: localhost
+  connection: local
+  gather_facts: true
+
+  roles:
+    - role: acea.suse_aws.ssm_preflight

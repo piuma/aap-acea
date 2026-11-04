@@ -1,0 +1,26 @@
+---
+- name: "Rimuovi il virtual host"
+  ansible.builtin.file:
+    path: "/etc/nginx/conf.d/{{ webserver_nginx_site_name }}.conf"
+    state: absent
+  notify: Ricarica nginx
+
+- name: "Rimuovi la document root"
+  ansible.builtin.file:
+    path: "{{ webserver_nginx_docroot }}"
+    state: absent
+
+- name: "Chiudi la porta su firewalld"
+  ansible.posix.firewalld:
+    port: "{{ webserver_nginx_port }}/tcp"
+    zone: "{{ webserver_nginx_firewall_zone }}"
+    permanent: true
+    immediate: true
+    state: disabled
+  when: webserver_nginx_manage_firewall | bool
+  failed_when: false
+
+- name: "Disinstalla {{ webserver_nginx_package }}"
+  community.general.zypper:
+    name: "{{ webserver_nginx_package }}"
+    state: absent

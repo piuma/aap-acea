@@ -1,0 +1,23 @@
+---
+galaxy_info:
+  role_name: zypper_patching
+  author: Team Automazione
+  description: >-
+    Patching di SUSE Linux Enterprise con zypper: precondizioni, censimento
+    degli aggiornamenti, applicazione per categoria e riavvio condizionato.
+  license: MIT
+  min_ansible_version: "2.15"
+  platforms:
+    - name: SLES
+      versions:
+        - "15"
+    - name: opensuse
+      versions:
+        - all
+  galaxy_tags:
+    - patching
+    - zypper
+    - suse
+    - compliance
+
+dependencies: []

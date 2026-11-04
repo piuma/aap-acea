@@ -1,0 +1,70 @@
+---
+- name: "Cerca il session-manager-plugin"
+  ansible.builtin.stat:
+    path: "{{ ssm_preflight_plugin_path }}"
+  register: ssm_preflight_plugin_stat
+
+- name: "Il session-manager-plugin e' obbligatorio"
+  ansible.builtin.assert:
+    that: ssm_preflight_plugin_stat.stat.exists
+    fail_msg: >-
+      session-manager-plugin non trovato in {{ ssm_preflight_plugin_path }}.
+      Va installato NELL'EXECUTION ENVIRONMENT (vedi
+      execution-environment/execution-environment.yml), non sull'host target.
+      Controlla anche che il Job Template usi l'EE custom e non quello di default.
+    success_msg: "session-manager-plugin trovato in {{ ssm_preflight_plugin_path }}"
+
+- name: "Interroga la versione del plugin"
+  ansible.builtin.command: "{{ ssm_preflight_plugin_path }} --version"
+  changed_when: false
+  register: ssm_preflight_plugin_cmd
+
+- name: "Interroga le versioni di boto3 e botocore"
+  ansible.builtin.command: >-
+    {{ ansible_playbook_python }} -c
+    "import boto3, botocore; print(boto3.__version__, '/', botocore.__version__)"
+  changed_when: false
+  register: ssm_preflight_boto_cmd
+
+- name: "Elenca le collection disponibili"
+  ansible.builtin.command: ansible-galaxy collection list
+  changed_when: false
+  failed_when: false
+  register: ssm_preflight_galaxy
+
+- name: "Le collection richieste sono installate"
+  ansible.builtin.assert:
+    that:
+      - item in ssm_preflight_galaxy.stdout
+    fail_msg: >-
+      La collection {{ item }} non e' disponibile nell'EE. Aggiungila a
+      collections/requirements.yml (project sync) oppure direttamente all'EE.
+  loop: "{{ ssm_preflight_required_collections }}"
+
+# Il connection plugin e' stato promosso da community.aws a amazon.aws con
+# amazon.aws 10.0.0: su un EE con amazon.aws 9.x l'FQCN amazon.aws.aws_ssm non
+# esiste e i job falliscono con un errore poco leggibile. Meglio scoprirlo qui.
+- name: "Il connection plugin SSM e' presente nell'EE"
+  # ansible-doc esce con rc=0 anche quando il plugin non esiste: con --json
+  # restituisce pero' un oggetto vuoto.
+  ansible.builtin.command: "ansible-doc --json -t connection {{ ssm_preflight_connection_plugin }}"
+  changed_when: false
+  failed_when: false
+  register: ssm_preflight_conn_doc
+
+- name: "Il connection plugin SSM deve essere risolvibile"
+  ansible.builtin.assert:
+    that:
+      - (ssm_preflight_conn_doc.stdout | default('{}') | from_json) | length > 0
+    fail_msg: >-
+      Il connection plugin {{ ssm_preflight_connection_plugin }} non esiste in
+      questo Execution Environment. Il plugin e' passato da community.aws ad
+      amazon.aws con amazon.aws 10.0.0: o aggiorni amazon.aws nell'EE, oppure
+      imposti ssm_connection_plugin=community.aws.aws_ssm nelle variabili
+      dell'inventario.
+    success_msg: "Connection plugin {{ ssm_preflight_connection_plugin }} disponibile."
+
+- name: "Memorizza le versioni per il riepilogo"
+  ansible.builtin.set_fact:
+    ssm_preflight_plugin_version: "{{ ssm_preflight_plugin_cmd.stdout | trim }}"
+    ssm_preflight_boto_version: "{{ ssm_preflight_boto_cmd.stdout | trim }}"

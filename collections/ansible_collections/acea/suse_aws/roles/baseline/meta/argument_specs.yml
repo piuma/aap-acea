@@ -1,0 +1,64 @@
+---
+argument_specs:
+  main:
+    short_description: "Baseline di configurazione per SUSE Linux Enterprise"
+    description:
+      - Richiede che il play esegua C(gather_facts).
+      - >-
+        Ogni sezione ha il suo interruttore C(baseline_manage_*), cosi' il
+        ruolo si puo' usare a pezzi. La sezione sshd e' disattivata di default.
+    options:
+      baseline_manage_packages: {type: bool, required: false, description: "Installa i pacchetti di baseline."}
+      baseline_manage_time: {type: bool, required: false, description: "Gestisce timezone e chrony."}
+      baseline_manage_users: {type: bool, required: false, description: "Gestisce gruppo, sudoers e utenti operativi."}
+      baseline_manage_sysctl: {type: bool, required: false, description: "Applica i parametri kernel."}
+      baseline_manage_motd: {type: bool, required: false, description: "Scrive /etc/motd."}
+      baseline_manage_sshd: {type: bool, required: false, description: "Applica le impostazioni di sshd (opt-in)."}
+      baseline_packages:
+        type: list
+        elements: str
+        required: false
+        description: "Pacchetti installati su ogni host."
+      baseline_timezone:
+        type: str
+        required: false
+        description: "Timezone in formato tz database, es. Europe/Rome."
+      baseline_ntp_servers:
+        type: list
+        elements: str
+        required: false
+        description: "Server NTP scritti in /etc/chrony.conf."
+      baseline_admin_group:
+        type: str
+        required: false
+        description: "Gruppo amministrativo a cui viene concesso sudo."
+      baseline_admin_sudo_nopasswd:
+        type: bool
+        required: false
+        description: "Concede sudo senza password al gruppo amministrativo."
+      baseline_admin_users:
+        type: list
+        elements: dict
+        required: false
+        description: "Utenti operativi da creare."
+        options:
+          name: {type: str, required: true, description: "Username."}
+          comment: {type: str, required: false, description: "Campo GECOS."}
+          shell: {type: str, required: false, description: "Shell di login."}
+          ssh_key: {type: str, required: false, description: "Chiave pubblica da installare in authorized_keys."}
+      baseline_sysctl_file:
+        type: str
+        required: false
+        description: "File sotto /etc/sysctl.d in cui scrivere i parametri."
+      baseline_sysctl:
+        type: dict
+        required: false
+        description: "Mappa parametro -> valore da applicare."
+      baseline_sshd_config:
+        type: str
+        required: false
+        description: "Path del file di configurazione di sshd."
+      baseline_sshd_settings:
+        type: dict
+        required: false
+        description: "Mappa direttiva -> valore da impostare in sshd_config."

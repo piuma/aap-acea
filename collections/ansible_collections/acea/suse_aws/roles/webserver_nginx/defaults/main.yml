@@ -1,0 +1,23 @@
+---
+# present | absent
+webserver_nginx_state: present
+
+webserver_nginx_package: nginx
+webserver_nginx_service: nginx
+webserver_nginx_port: 80
+
+# Su SUSE la docroot di default di nginx e' /srv/www/htdocs
+webserver_nginx_docroot: /srv/www/htdocs/aap-demo
+webserver_nginx_site_name: aap-demo
+
+webserver_nginx_site_title: "AAP demo"
+webserver_nginx_owner: "Team Automazione"
+
+# Dichiara il vhost come default_server. Mettilo a false se l'immagine SLES ha
+# gia' un default_server in /etc/nginx/nginx.conf: altrimenti `nginx -t`
+# fallisce in fase di validate.
+webserver_nginx_default_server: true
+
+# Apre la porta su firewalld, ma solo se firewalld e' davvero in esecuzione.
+webserver_nginx_manage_firewall: true
+webserver_nginx_firewall_zone: public

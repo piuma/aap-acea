@@ -1,0 +1,21 @@
+# Collection scaricate da Galaxy/Automation Hub: tutto tranne la nostra, che e'
+# codice sorgente versionato.
+collections/ansible_collections/*
+!collections/ansible_collections/acea
+collections/ansible_collections/acea/*
+!collections/ansible_collections/acea/suse_aws
+
+# Artefatti di build
+execution-environment/context/
+*.tar
+*.tar.gz
+
+# Cache
+*.retry
+.ansible/
+__pycache__/
+
+# Secret / file locali
+*.vault
+.env
+vars/secrets.yml

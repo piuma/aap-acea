@@ -1,0 +1,49 @@
+---
+- name: "L'istanza esiste su EC2"
+  amazon.aws.ec2_instance_info:
+    instance_ids:
+      - "{{ ssm_preflight_instance_id }}"
+    region: "{{ ssm_preflight_region }}"
+  register: ssm_preflight_ec2
+
+- name: "Dettagli dell'istanza"
+  ansible.builtin.debug:
+    msg:
+      - "stato            : {{ ssm_preflight_ec2.instances[0].state.name }}"
+      - "tipo             : {{ ssm_preflight_ec2.instances[0].instance_type }}"
+      - "platform         : {{ ssm_preflight_ec2.instances[0].platform_details | default('n/d') }}"
+      - "instance profile : {{ ssm_preflight_ec2.instances[0].iam_instance_profile.arn | default('ASSENTE') }}"
+      - "tag AnsibleManaged: {{ ssm_preflight_ec2.instances[0].tags.AnsibleManaged | default('ASSENTE') }}"
+
+- name: "L'istanza ha un IAM instance profile"
+  ansible.builtin.assert:
+    that:
+      - ssm_preflight_ec2.instances[0].iam_instance_profile is defined
+    fail_msg: >-
+      L'istanza non ha un IAM instance profile: l'SSM Agent non riuscira' a
+      registrarsi. Vedi aws/iam-policy-ec2-instance.json.
+
+- name: "L'istanza ha il tag richiesto dalla Condition IAM"
+  ansible.builtin.assert:
+    that:
+      - (ssm_preflight_ec2.instances[0].tags.AnsibleManaged | default('')) | lower == 'true'
+    fail_msg: >-
+      Manca il tag AnsibleManaged=true. Serve sia all'inventario dinamico sia
+      alla Condition su ssm:StartSession nella policy del controller.
+
+- name: "L'istanza e' censita dall'inventario Systems Manager"
+  community.aws.ssm_inventory_info:
+    instance_id: "{{ ssm_preflight_instance_id }}"
+    region: "{{ ssm_preflight_region }}"
+  register: ssm_preflight_inventory
+  failed_when: false
+
+- name: "Esito della registrazione in SSM"
+  ansible.builtin.debug:
+    msg: >-
+      {{ 'Istanza registrata in SSM (agent '
+         ~ (ssm_preflight_inventory.ssm_inventory | default({})).get('AgentVersion', 'n/d') ~ ').'
+         if (ssm_preflight_inventory.ssm_inventory | default({})) | length > 0
+         else 'Istanza NON registrata in SSM. Verifica: amazon-ssm-agent attivo sulla VM,
+               instance profile con AmazonSSMManagedInstanceCore, uscita sulla 443 verso
+               ssm / ssmmessages / ec2messages (NAT gateway oppure VPC endpoint).' }}

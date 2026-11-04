@@ -1,0 +1,23 @@
+---
+# acea.suse_aws.site
+#
+# Orchestratore completo: preflight, verifica connettivita, baseline, webserver.
+# Il patching resta fuori di proposito: va pianificato a parte, con la sua
+# finestra di manutenzione e la sua strategia di rollout.
+#
+#   ansible-playbook acea.suse_aws.site \
+#     -e aws_region=eu-south-1 -e ssm_transfer_bucket=acea-aap-ssm-transfer
+#
+# In AAP preferisci un Workflow Job Template (vedi aap/controller_setup.yml):
+# ogni step diventa un nodo, con i suoi permessi e le sue survey.
+- name: "Preflight"
+  ansible.builtin.import_playbook: acea.suse_aws.preflight
+
+- name: "Connettivita"
+  ansible.builtin.import_playbook: acea.suse_aws.connectivity
+
+- name: "Baseline"
+  ansible.builtin.import_playbook: acea.suse_aws.baseline
+
+- name: "Webserver"
+  ansible.builtin.import_playbook: acea.suse_aws.webserver

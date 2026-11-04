@@ -1,0 +1,38 @@
+---
+- name: "L'host e' una SUSE"
+  ansible.builtin.assert:
+    that:
+      - ansible_facts.os_family == 'Suse'
+    fail_msg: >-
+      {{ inventory_hostname }} non e' SUSE
+      (os_family={{ ansible_facts.os_family | default('non raccolto') }}).
+
+- name: "Pacchetti di baseline"
+  ansible.builtin.include_tasks: packages.yml
+  when: baseline_manage_packages | bool
+  tags: [baseline, packages]
+
+- name: "Timezone e sincronizzazione oraria"
+  ansible.builtin.include_tasks: time.yml
+  when: baseline_manage_time | bool
+  tags: [baseline, time]
+
+- name: "Utenti operativi"
+  ansible.builtin.include_tasks: users.yml
+  when: baseline_manage_users | bool
+  tags: [baseline, users]
+
+- name: "Parametri kernel"
+  ansible.builtin.include_tasks: sysctl.yml
+  when: baseline_manage_sysctl | bool
+  tags: [baseline, sysctl]
+
+- name: "Message of the day"
+  ansible.builtin.include_tasks: motd.yml
+  when: baseline_manage_motd | bool
+  tags: [baseline, motd]
+
+- name: "Configurazione di sshd"
+  ansible.builtin.include_tasks: sshd.yml
+  when: baseline_manage_sshd | bool
+  tags: [baseline, sshd]

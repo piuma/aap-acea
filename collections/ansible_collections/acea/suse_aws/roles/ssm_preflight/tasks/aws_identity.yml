@@ -1,0 +1,12 @@
+---
+- name: "Chi e' l'identita' AWS usata dal job"
+  amazon.aws.aws_caller_info:
+    region: "{{ ssm_preflight_region }}"
+  register: ssm_preflight_caller
+
+- name: "Identita' AWS"
+  ansible.builtin.debug:
+    msg:
+      - "account : {{ ssm_preflight_caller.account }}"
+      - "arn     : {{ ssm_preflight_caller.arn }}"
+      - "region  : {{ ssm_preflight_region }}"

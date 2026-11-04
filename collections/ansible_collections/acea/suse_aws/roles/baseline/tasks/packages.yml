@@ -1,0 +1,7 @@
+---
+- name: "Installa i pacchetti di baseline"
+  community.general.zypper:
+    name: "{{ baseline_packages }}"
+    state: present
+    update_cache: true
+  when: baseline_packages | length > 0

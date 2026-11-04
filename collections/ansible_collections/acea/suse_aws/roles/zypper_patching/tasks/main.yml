@@ -1,0 +1,29 @@
+---
+# NOTA: `serial` e `max_fail_percentage` sono keyword di play, non di ruolo:
+# la strategia di rollout va decisa nel playbook che include questo ruolo
+# (vedi playbooks/patching.yml).
+- name: "Precondizioni"
+  ansible.builtin.include_tasks: assert.yml
+  tags: [patching, assert]
+
+- name: "Censimento degli aggiornamenti disponibili"
+  ansible.builtin.include_tasks: report.yml
+  tags: [patching, report]
+
+- name: "Applicazione delle patch"
+  ansible.builtin.include_tasks: apply.yml
+  when: not (zypper_patching_check_only | bool)
+  tags: [patching, apply]
+
+- name: "Gestione del riavvio"
+  ansible.builtin.include_tasks: reboot.yml
+  when: not (zypper_patching_check_only | bool)
+  tags: [patching, reboot]
+
+- name: "Nessuna modifica applicata (check_only attivo)"
+  ansible.builtin.debug:
+    msg: >-
+      Eseguito in sola verifica. Per applicare davvero, rilancia con
+      zypper_patching_check_only=false.
+  when: zypper_patching_check_only | bool
+  tags: [patching]

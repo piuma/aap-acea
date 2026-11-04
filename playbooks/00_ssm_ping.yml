@@ -1,0 +1,7 @@
+---
+# Entry point per il Job Template "SUSE / 00 - Verifica connettivita SSM".
+#
+# La logica sta nel ruolo acea.suse_aws.ssm_connectivity; questo file esiste
+# solo per dare al Job Template un path stabile e un nome parlante.
+- name: "00 - Verifica connettivita via AWS Systems Manager"
+  ansible.builtin.import_playbook: acea.suse_aws.connectivity

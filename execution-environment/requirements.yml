@@ -1,0 +1,21 @@
+---
+# Collection incluse DENTRO l'immagine EE.
+# Nota: sono le stesse di collections/requirements.yml (che invece viene
+# risolto a runtime dal project sync). Averle nell'EE rende i job piu' veloci
+# e funzionanti anche in ambienti disconnessi.
+collections:
+  # >=10.0.0: e' la versione in cui il connection plugin aws_ssm e' stato
+  # promosso da community.aws ad amazon.aws. In 9.x non esiste.
+  - name: amazon.aws
+    version: ">=10.0.0"
+
+  # ssm_inventory_info per il preflight, e fallback per il connection plugin
+  # se devi restare su amazon.aws 9.x.
+  - name: community.aws
+    version: ">=9.0.0"
+
+  - name: community.general
+    version: ">=10.0.0"
+
+  - name: ansible.posix
+    version: ">=1.5.4"

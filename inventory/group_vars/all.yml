@@ -1,0 +1,25 @@
+---
+# Variabili globali del progetto.
+# In AAP conviene ridefinirle come "Extra Variables" del Job Template (o come
+# variabili dell'Inventory) cosi' da non dover committare valori specifici
+# dell'ambiente.
+
+# Regione in cui vivono le EC2 e il bucket di transito.
+aws_region: eu-south-1
+
+# Bucket S3 usato dal connection plugin aws_ssm per il trasferimento file.
+# NON e' opzionale: senza bucket il plugin non puo' copiare i moduli sul target.
+# Deve avere il versioning DISABILITATO (gli oggetti vengono cancellati a fine
+# trasferimento, ma le versioni precedenti resterebbero).
+ssm_transfer_bucket: aws-aceh-aap-tst-s3-01
+
+# Tag applicato alle istanze gestite (usato dall'inventario dinamico).
+managed_tag: AnsibleManaged
+
+# Quale connection plugin usare per SSM.
+#
+# Il plugin e' stato promosso da community.aws a amazon.aws con il rilascio di
+# amazon.aws 10.0.0. Se il tuo Execution Environment monta amazon.aws 9.x, il
+# plugin NON c'e': passa a "community.aws.aws_ssm".
+# Verifica con:  ansible-doc -t connection amazon.aws.aws_ssm
+ssm_connection_plugin: amazon.aws.aws_ssm

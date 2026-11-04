@@ -1,0 +1,37 @@
+---
+- name: "Gruppo amministrativo"
+  ansible.builtin.group:
+    name: "{{ baseline_admin_group }}"
+    state: present
+
+- name: "Sudo senza password per il gruppo amministrativo"
+  ansible.builtin.copy:
+    dest: "/etc/sudoers.d/10-{{ baseline_admin_group }}"
+    content: "%{{ baseline_admin_group }} ALL=(ALL) NOPASSWD: ALL\n"
+    owner: root
+    group: root
+    mode: "0440"
+    validate: "visudo -cf %s"
+  when: baseline_admin_sudo_nopasswd | bool
+
+- name: "Crea gli utenti operativi"
+  ansible.builtin.user:
+    name: "{{ item.name }}"
+    comment: "{{ item.comment | default('') }}"
+    groups: "{{ baseline_admin_group }}"
+    append: true
+    shell: "{{ item.shell | default('/bin/bash') }}"
+    state: present
+  loop: "{{ baseline_admin_users }}"
+  loop_control:
+    label: "{{ item.name }}"
+
+- name: "Installa le chiavi pubbliche"
+  ansible.posix.authorized_key:
+    user: "{{ item.name }}"
+    key: "{{ item.ssh_key }}"
+    state: present
+    exclusive: false
+  loop: "{{ baseline_admin_users | selectattr('ssh_key', 'defined') | list }}"
+  loop_control:
+    label: "{{ item.name }}"

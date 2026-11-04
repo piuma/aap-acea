@@ -1,0 +1,7 @@
+# Pacchetti di sistema dell'Execution Environment.
+# Formato bindep: <pacchetto> [platform:<family>]
+#
+# NOTA: non dichiarare `curl`: su UBI9 e' gia' presente `curl-minimal` e
+# installare `curl` genera un conflitto che fa fallire la build.
+unzip [platform:rpm]
+tar [platform:rpm]

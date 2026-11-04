@@ -1,0 +1,6 @@
+---
+# Entry point per il Job Template "SUSE / 20 - Patching zypper".
+# Logica: ruolo acea.suse_aws.zypper_patching.
+# Strategia di rollout (serial, max_fail_percentage): nel play della collection.
+- name: "20 - Patching zypper su SUSE Linux Enterprise"
+  ansible.builtin.import_playbook: acea.suse_aws.patching

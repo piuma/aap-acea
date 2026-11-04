@@ -1,0 +1,357 @@
+---
+# ===========================================================================
+# Configurazione di Ansible Automation Platform via API (config-as-code)
+# ===========================================================================
+# Crea progetto, credential AWS, EE, inventario dinamico, job template con
+# survey e un workflow che li incatena. Idempotente: rilanciabile.
+#
+# Prerequisiti (sulla macchina da cui lanci, non nell'EE):
+#   ansible-galaxy collection install ansible.controller   # oppure awx.awx
+#
+# Autenticazione (variabili d'ambiente):
+#   export CONTROLLER_HOST=https://aap.example.com
+#   export CONTROLLER_USERNAME=admin
+#   export CONTROLLER_PASSWORD='...'
+#   export CONTROLLER_VERIFY_SSL=false        # solo in lab
+#
+# Lancio:
+#   ansible-playbook aap/controller_setup.yml \
+#     -e aws_access_key=AKIA... -e aws_secret_key=...
+#
+# Con AWX al posto di AAP: sostituisci ansible.controller -> awx.awx
+# (i nomi dei moduli sono identici).
+- name: "Configura AAP per l'automazione SUSE via SSM"
+  hosts: localhost
+  connection: local
+  gather_facts: false
+
+  vars_files:
+    - vars/main.yml
+
+  module_defaults:
+    group/ansible.controller.controller:
+      controller_host: "{{ lookup('ansible.builtin.env', 'CONTROLLER_HOST') }}"
+      controller_username: "{{ lookup('ansible.builtin.env', 'CONTROLLER_USERNAME') }}"
+      controller_password: "{{ lookup('ansible.builtin.env', 'CONTROLLER_PASSWORD') }}"
+      validate_certs: "{{ lookup('ansible.builtin.env', 'CONTROLLER_VERIFY_SSL') | default('true', true) | bool }}"
+
+  tasks:
+    # -------------------------------------------------------------------
+    # Credential AWS
+    # -------------------------------------------------------------------
+    - name: "Le chiavi AWS devono essere passate come extra vars"
+      ansible.builtin.assert:
+        that:
+          - aws_access_key | length > 0
+          - aws_secret_key | length > 0
+        fail_msg: >-
+          Lancia con -e aws_access_key=... -e aws_secret_key=... (oppure
+          caricali da un vault). Non committarli in vars/main.yml.
+
+    - name: "Credential AWS"
+      ansible.controller.credential:
+        name: "{{ aap_aws_credential_name }}"
+        description: "Accesso EC2/SSM/S3 per l'automazione delle SUSE"
+        organization: "{{ aap_organization }}"
+        credential_type: "Amazon Web Services"
+        inputs:
+          username: "{{ aws_access_key }}"
+          password: "{{ aws_secret_key }}"
+          security_token: "{{ aws_security_token | default(omit) }}"
+        state: present
+
+    # -------------------------------------------------------------------
+    # Execution Environment
+    # -------------------------------------------------------------------
+    - name: "Execution Environment con session-manager-plugin"
+      ansible.controller.execution_environment:
+        name: "{{ aap_ee_name }}"
+        image: "{{ aap_ee_image }}"
+        organization: "{{ aap_organization }}"
+        pull: always
+        credential: "{{ aap_ee_registry_credential | default(omit, true) }}"
+        state: present
+
+    # -------------------------------------------------------------------
+    # Progetto
+    # -------------------------------------------------------------------
+    - name: "Progetto git"
+      ansible.controller.project:
+        name: "{{ aap_project_name }}"
+        description: "Playbook di automazione per le EC2 SUSE gestite via SSM"
+        organization: "{{ aap_organization }}"
+        scm_type: git
+        scm_url: "{{ aap_project_scm_url }}"
+        scm_branch: "{{ aap_project_branch }}"
+        scm_credential: "{{ aap_project_scm_credential | default(omit, true) }}"
+        scm_clean: true
+        scm_delete_on_update: false
+        scm_update_on_launch: true
+        scm_update_cache_timeout: 60
+        default_environment: "{{ aap_ee_name }}"
+        state: present
+        wait: true
+
+    # -------------------------------------------------------------------
+    # Inventario dinamico
+    # -------------------------------------------------------------------
+    - name: "Inventario"
+      ansible.controller.inventory:
+        name: "{{ aap_inventory_name }}"
+        description: "Istanze EC2 SUSE con tag AnsibleManaged=true"
+        organization: "{{ aap_organization }}"
+        variables:
+          aws_region: "{{ aap_aws_region }}"
+          ssm_transfer_bucket: "{{ aap_ssm_bucket }}"
+        state: present
+
+    - name: "Sorgente dell'inventario (file del progetto)"
+      ansible.controller.inventory_source:
+        name: "{{ aap_inventory_source_name }}"
+        inventory: "{{ aap_inventory_name }}"
+        organization: "{{ aap_organization }}"
+        source: scm
+        source_project: "{{ aap_project_name }}"
+        source_path: "inventory/aws_ec2.yml"
+        credential: "{{ aap_aws_credential_name }}"
+        execution_environment: "{{ aap_ee_name }}"
+        overwrite: true
+        overwrite_vars: true
+        update_on_launch: true
+        update_cache_timeout: 60
+        state: present
+
+    - name: "Prima sincronizzazione dell'inventario"
+      ansible.controller.inventory_source_update:
+        name: "{{ aap_inventory_source_name }}"
+        inventory: "{{ aap_inventory_name }}"
+        organization: "{{ aap_organization }}"
+        wait: true
+        timeout: 300
+      register: inv_sync
+      failed_when: false
+
+    - name: "Esito sincronizzazione"
+      ansible.builtin.debug:
+        msg: >-
+          {{ 'Inventario sincronizzato.' if inv_sync.status | default('') == 'successful'
+             else 'Sincronizzazione non riuscita (' ~ (inv_sync.status | default('?')) ~ '): controlla credential AWS e tag delle istanze.' }}
+
+    # -------------------------------------------------------------------
+    # Job Template
+    # -------------------------------------------------------------------
+    - name: "Job Template — 00 Verifica connettivita SSM"
+      ansible.controller.job_template:
+        name: "SUSE / 00 - Verifica connettivita SSM"
+        description: "Smoke test: apre una sessione Session Manager e lancia ping. Non modifica nulla."
+        job_type: run
+        organization: "{{ aap_organization }}"
+        inventory: "{{ aap_inventory_name }}"
+        project: "{{ aap_project_name }}"
+        playbook: "playbooks/00_ssm_ping.yml"
+        execution_environment: "{{ aap_ee_name }}"
+        credentials:
+          - "{{ aap_aws_credential_name }}"
+        ask_limit_on_launch: true
+        ask_verbosity_on_launch: true
+        state: present
+
+    - name: "Job Template — 10 Report inventario"
+      ansible.controller.job_template:
+        name: "SUSE / 10 - Report inventario"
+        description: "Raccoglie i fact dalle SUSE e produce un report markdown nel log del job."
+        job_type: run
+        organization: "{{ aap_organization }}"
+        inventory: "{{ aap_inventory_name }}"
+        project: "{{ aap_project_name }}"
+        playbook: "playbooks/10_facts_report.yml"
+        execution_environment: "{{ aap_ee_name }}"
+        credentials:
+          - "{{ aap_aws_credential_name }}"
+        ask_limit_on_launch: true
+        state: present
+
+    - name: "Job Template — 20 Patching zypper"
+      ansible.controller.job_template:
+        name: "SUSE / 20 - Patching zypper"
+        description: "Applica patch zypper a rolling, con reboot opzionale."
+        job_type: run
+        organization: "{{ aap_organization }}"
+        inventory: "{{ aap_inventory_name }}"
+        project: "{{ aap_project_name }}"
+        playbook: "playbooks/20_zypper_patching.yml"
+        execution_environment: "{{ aap_ee_name }}"
+        credentials:
+          - "{{ aap_aws_credential_name }}"
+        ask_limit_on_launch: true
+        become_enabled: true
+        survey_enabled: true
+        survey_spec:
+          name: "Parametri di patching"
+          description: "Scegli cosa applicare e con quale aggressivita'."
+          spec:
+            # Le variabili della survey sono esattamente quelle del ruolo
+            # acea.suse_aws.zypper_patching: nessun mapping intermedio.
+            - question_name: "Tipo di aggiornamento"
+              question_description: "security = solo patch di sicurezza; all = zypper update completo"
+              variable: zypper_patching_type
+              type: multiplechoice
+              choices:
+                - security
+                - recommended
+                - all
+              default: security
+              required: true
+            - question_name: "Solo verifica (nessuna modifica)"
+              variable: zypper_patching_check_only
+              type: multiplechoice
+              choices:
+                - "true"
+                - "false"
+              default: "true"
+              required: true
+            - question_name: "Riavvia se necessario"
+              variable: zypper_patching_allow_reboot
+              type: multiplechoice
+              choices:
+                - "false"
+                - "true"
+              default: "false"
+              required: true
+            - question_name: "Host in parallelo (serial)"
+              question_description: "Numero assoluto (es. 2) o percentuale (es. 25%)"
+              variable: patch_serial
+              type: text
+              default: "25%"
+              required: true
+        state: present
+
+    - name: "Job Template — 30 Deploy webserver"
+      ansible.controller.job_template:
+        name: "SUSE / 30 - Deploy webserver nginx"
+        description: "Installa nginx e pubblica la pagina demo. Esempio di ruolo riutilizzabile."
+        job_type: run
+        organization: "{{ aap_organization }}"
+        inventory: "{{ aap_inventory_name }}"
+        project: "{{ aap_project_name }}"
+        playbook: "playbooks/30_webserver_nginx.yml"
+        execution_environment: "{{ aap_ee_name }}"
+        credentials:
+          - "{{ aap_aws_credential_name }}"
+        ask_limit_on_launch: true
+        survey_enabled: true
+        survey_spec:
+          name: "Parametri del webserver"
+          description: ""
+          spec:
+            - question_name: "Titolo della pagina"
+              variable: webserver_nginx_site_title
+              type: text
+              default: "Demo AAP"
+              required: true
+            - question_name: "Azione"
+              variable: webserver_nginx_state
+              type: multiplechoice
+              choices:
+                - present
+                - absent
+              default: present
+              required: true
+        state: present
+
+    - name: "Job Template — 40 Baseline"
+      ansible.controller.job_template:
+        name: "SUSE / 40 - Baseline di configurazione"
+        description: "Timezone, NTP, utenti operativi, sysctl, motd. Supporta il check mode."
+        job_type: run
+        organization: "{{ aap_organization }}"
+        inventory: "{{ aap_inventory_name }}"
+        project: "{{ aap_project_name }}"
+        playbook: "playbooks/40_baseline_hardening.yml"
+        execution_environment: "{{ aap_ee_name }}"
+        credentials:
+          - "{{ aap_aws_credential_name }}"
+        ask_limit_on_launch: true
+        ask_job_type_on_launch: true
+        diff_mode: true
+        state: present
+
+    - name: "Job Template — 99 Preflight"
+      ansible.controller.job_template:
+        name: "SUSE / 99 - Preflight check EE e AWS"
+        description: "Diagnostica: session-manager-plugin, boto3, credential AWS, bucket S3, registrazione SSM."
+        job_type: run
+        organization: "{{ aap_organization }}"
+        inventory: "{{ aap_inventory_name }}"
+        project: "{{ aap_project_name }}"
+        playbook: "playbooks/99_preflight_check.yml"
+        execution_environment: "{{ aap_ee_name }}"
+        credentials:
+          - "{{ aap_aws_credential_name }}"
+        extra_vars:
+          aws_region: "{{ aap_aws_region }}"
+          ssm_transfer_bucket: "{{ aap_ssm_bucket }}"
+        survey_enabled: true
+        survey_spec:
+          name: "Istanza da verificare"
+          description: ""
+          spec:
+            - question_name: "Instance ID (opzionale)"
+              question_description: "Es. i-0123456789abcdef0. Lascia vuoto per saltare i controlli sull'istanza."
+              variable: ssm_preflight_instance_id
+              type: text
+              default: ""
+              required: false
+        state: present
+
+    # -------------------------------------------------------------------
+    # Workflow: preflight -> connettivita -> patching in check mode
+    # -------------------------------------------------------------------
+    - name: "Workflow — Onboarding e verifica"
+      ansible.controller.workflow_job_template:
+        name: "SUSE / Workflow - Onboarding e verifica"
+        description: "Preflight, poi connettivita, poi report e simulazione di patching."
+        organization: "{{ aap_organization }}"
+        inventory: "{{ aap_inventory_name }}"
+        ask_limit_on_launch: true
+        state: present
+        workflow_nodes:
+          - identifier: preflight
+            unified_job_template:
+              name: "SUSE / 99 - Preflight check EE e AWS"
+              type: job_template
+            related:
+              success_nodes:
+                - identifier: connettivita
+          - identifier: connettivita
+            unified_job_template:
+              name: "SUSE / 00 - Verifica connettivita SSM"
+              type: job_template
+            related:
+              success_nodes:
+                - identifier: report
+          - identifier: report
+            unified_job_template:
+              name: "SUSE / 10 - Report inventario"
+              type: job_template
+            related:
+              success_nodes:
+                - identifier: patch_dryrun
+          - identifier: patch_dryrun
+            unified_job_template:
+              name: "SUSE / 20 - Patching zypper"
+              type: job_template
+            extra_data:
+              zypper_patching_check_only: true
+              zypper_patching_type: security
+
+    - name: "Riepilogo"
+      ansible.builtin.debug:
+        msg:
+          - "Organizzazione : {{ aap_organization }}"
+          - "Progetto       : {{ aap_project_name }} ({{ aap_project_branch }})"
+          - "EE             : {{ aap_ee_name }} -> {{ aap_ee_image }}"
+          - "Inventario     : {{ aap_inventory_name }}"
+          - "Job template   : 00, 10, 20, 30, 40, 99"
+          - "Workflow       : SUSE / Workflow - Onboarding e verifica"
+          - "Parti da 'SUSE / 99 - Preflight check EE e AWS'."
