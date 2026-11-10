@@ -13,12 +13,31 @@ version: 3
 images:
   base_image:
     # EE minimale supportato da Red Hat (serve login a registry.redhat.io).
-    # Verifica il path per la tua versione di AAP:
-    #   registry.redhat.io/ansible-automation-platform-25/ee-minimal-rhel9:latest
-    #   registry.redhat.io/ansible-automation-platform-26/ee-minimal-rhel9:latest
-    #   registry.redhat.io/ansible-automation-platform/ee-minimal-rhel9:latest
+    #
+    # DUE COSE DA SAPERE SU QUESTO PATH, entrambe fonte di errori ottusi:
+    #
+    # 1. NIENTE `:latest`. Il repository lo rifiuta esplicitamente:
+    #      unsupported: This repository does not use the "latest" tag [...]
+    #    Serve sempre un tag esplicito. Vedi access.redhat.com/articles/4301321
+    #
+    # 2. IL TAG E' LA VERSIONE DI ANSIBLE-CORE, non quella di AAP. Il
+    #    repository -27 pubblica due stream: 2.16 e 2.20. Il suffisso -NN nel
+    #    path e' la versione di AAP, il tag e' il core.
+    #
+    # Qui serve >= 2.17, perche' amazon.aws >= 10.0.0 (vedi requirements.yml)
+    # non supporta core 2.16: con 2.16 la collection si installa comunque ma
+    # dichiara "does not support Ansible version", e build.sh fallisce apposta.
+    #
+    # Per vedere i tag disponibili e cosa contengono:
+    #   skopeo list-tags docker://registry.redhat.io/ansible-automation-platform-27/ee-minimal-rhel9
+    #   skopeo inspect  docker://registry.redhat.io/.../ee-minimal-rhel9:2.20
+    #
+    # Il tag `2.20` segue le patch dentro lo stream 2.20. Per build
+    # riproducibili al byte, sostituiscilo con il digest:
+    #   ...ee-minimal-rhel9@sha256:f4bcc1c2a8e715b2f02629bd5022cf6890bc43b13837ace70c8ce15bcee4a837
+    #
     # Alternativa community (senza subscription): quay.io/ansible/awx-ee:latest
-    name: registry.redhat.io/ansible-automation-platform-25/ee-minimal-rhel9:latest
+    name: registry.redhat.io/ansible-automation-platform-27/ee-minimal-rhel9:2.20
 
 options:
   # OBBLIGATORIO con le immagini ee-minimal: sono basate su UBI9-minimal, che

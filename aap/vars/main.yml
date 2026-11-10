@@ -14,9 +14,15 @@ aap_project_branch: "main"
 aap_project_scm_credential: ""
 
 # --- Execution Environment -------------------------------------------------
-aap_ee_name: "AWS SSM EE"
-aap_ee_image: "quay.io/ORGANIZZAZIONE/aap-acea-aws-ssm-ee:latest"
-# Nome di una credential di tipo "Container Registry"; "" se il registry e' pubblico.
+# ATTENZIONE: questi nomi devono combaciare ESATTAMENTE con gli oggetti gia'
+# creati a mano in AAP. I moduli ansible.controller sono idempotenti per nome:
+# un nome diverso non aggiorna l'oggetto esistente, ne crea un secondo.
+aap_ee_name: "aap-acea-aws-ssm-ee"
+# Tag esplicito, non :latest, cosi' si sa sempre quale immagine sta girando.
+aap_ee_image: "quay.io/dabbasci/acea/aap-acea-aws-ssm-ee:1.0.0"
+# Nome di una credential di tipo "Container Registry"; "" se il registry e'
+# pubblico. Quay crea i repository PRIVATI per default: se non l'hai reso
+# pubblico, qui serve il nome di una credential con le tue chiavi Quay.
 aap_ee_registry_credential: ""
 
 # --- Credential AWS --------------------------------------------------------
@@ -35,5 +41,7 @@ aap_aws_region: "eu-south-1"
 aap_ssm_bucket: "aws-aceh-aap-tst-s3-01"
 
 # --- Inventario ------------------------------------------------------------
-aap_inventory_name: "AWS - EC2 SUSE"
+# Anche qui: nomi identici a quelli gia' presenti in AAP, altrimenti il
+# playbook crea un secondo inventario invece di aggiornare il tuo.
+aap_inventory_name: "AWS - EC2 SUSE Demo"
 aap_inventory_source_name: "EC2 dinamico (tag AnsibleManaged)"
