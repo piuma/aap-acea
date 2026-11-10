@@ -20,34 +20,52 @@ images:
     # Alternativa community (senza subscription): quay.io/ansible/awx-ee:latest
     name: registry.redhat.io/ansible-automation-platform-25/ee-minimal-rhel9:latest
 
+options:
+  # OBBLIGATORIO con le immagini ee-minimal: sono basate su UBI9-minimal, che
+  # ha microdnf e NON ha dnf. ansible-builder assume /usr/bin/dnf e lo script
+  # assemble fallisce con:
+  #   /output/scripts/assemble: line 73: /usr/bin/dnf: No such file or directory
+  # Se passi a un'immagine base UBI9 "piena" (o a quay.io/ansible/awx-ee, che e'
+  # su CentOS Stream), rimetti /usr/bin/dnf.
+  package_manager_path: /usr/bin/microdnf
+
 dependencies:
   galaxy: requirements.yml
   python: requirements.txt
   system: bindep.txt
 
 additional_build_steps:
-  prepend_base:
+  # ATTENZIONE: niente direttive USER qui dentro.
+  # Lo stage finale gira gia' come root (ansible-builder emette `USER root`
+  # subito dopo il FROM dell'immagine base) e rimette `USER 1000` in fondo al
+  # Containerfile. Un `USER 1000` messo qui finirebbe PRIMA del
+  # `RUN rm -rf /output` generato da ansible-builder, che girerebbe senza
+  # privilegi su una directory di root e farebbe fallire la build.
+  append_final:
     - LABEL org.opencontainers.image.title="aap-acea-aws-ssm-ee"
     - LABEL org.opencontainers.image.description="EE con session-manager-plugin per connessioni aws_ssm verso EC2 SUSE"
     - LABEL org.opencontainers.image.vendor="Team Automazione"
 
-  append_final:
-    # Gli EE Red Hat girano come UID 1000: per installare serve root.
-    - USER root
-
     # --- AWS Session Manager plugin -------------------------------------
-    # Per immagini arm64 sostituire linux_64bit -> linux_arm64
+    # Architettura rilevata a runtime, cosi' l'EE si costruisce anche su arm64.
+    # NB: tutte le righe di questo scalare `>-` devono restare allo STESSO
+    # livello di indentazione. Una riga piu' indentata verrebbe trattata da YAML
+    # come "more-indented line" e conserverebbe l'a capo, spezzando il RUN in
+    # piu' righe fisiche del Containerfile.
     - >-
-      RUN curl -fsSL -o /tmp/session-manager-plugin.rpm
-      "https://s3.amazonaws.com/session-manager-downloads/plugin/latest/linux_64bit/session-manager-plugin.rpm"
-      && rpm -Uvh --nodeps /tmp/session-manager-plugin.rpm
-      && rm -f /tmp/session-manager-plugin.rpm
-      && ln -sf /usr/local/sessionmanagerplugin/bin/session-manager-plugin
-                /usr/local/bin/session-manager-plugin
-      && chmod 0755 /usr/local/sessionmanagerplugin/bin/session-manager-plugin
+      RUN set -eux;
+      case "$(uname -m)" in
+      x86_64) SMP_ARCH=linux_64bit ;;
+      aarch64) SMP_ARCH=linux_arm64 ;;
+      *) echo "architettura non supportata: $(uname -m)" >&2; exit 1 ;;
+      esac;
+      curl -fsSL -o /tmp/session-manager-plugin.rpm
+      "https://s3.amazonaws.com/session-manager-downloads/plugin/latest/${SMP_ARCH}/session-manager-plugin.rpm";
+      rpm -Uvh --nodeps /tmp/session-manager-plugin.rpm;
+      rm -f /tmp/session-manager-plugin.rpm;
+      ln -sf /usr/local/sessionmanagerplugin/bin/session-manager-plugin /usr/local/bin/session-manager-plugin;
+      chmod 0755 /usr/local/sessionmanagerplugin/bin/session-manager-plugin
 
     # Verifica in fase di build: se il plugin non parte, la build fallisce
     # subito invece di farlo scoprire al primo job.
     - RUN /usr/local/bin/session-manager-plugin --version
-
-    - USER 1000

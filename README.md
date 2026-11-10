@@ -101,7 +101,8 @@ Quattro cose non ovvie, ed è dove si inciampa:
 │   ├── execution-environment.yml
 │   ├── requirements.{yml,txt}
 │   ├── bindep.txt
-│   └── build.sh
+│   ├── build.sh
+│   └── README.md                      i tranelli di ansible-builder su ee-minimal
 │
 ├── aap/
 │   ├── controller_setup.yml           config-as-code: progetto, credential, JT, workflow
@@ -309,6 +310,7 @@ ansible-doc -t role acea.suse_aws.zypper_patching
 | `/usr/bin/python3: not found` | Immagine SLES minimale: installa `python3-base` (lo fa già lo user-data) |
 | Connessione lenta, ~2-3 s per task | È fisiologico: ogni task passa da S3. Alza `forks`, riduci il numero di task, usa `gather_facts: false` dove puoi |
 | `could not resolve the module_defaults group ansible.controller.controller` | `ansible.controller` non installata: `ansible-galaxy collection install -r aap/requirements.yml` |
+| Build dell'EE: `assemble: /usr/bin/dnf: No such file or directory` | Le immagini `ee-minimal` hanno `microdnf`, non `dnf`: serve `options.package_manager_path: /usr/bin/microdnf`. Vedi [execution-environment/README.md](execution-environment/README.md) |
 
 Comandi utili:
 
